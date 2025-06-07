@@ -1,0 +1,75 @@
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[user]
+	name = yuichisugio
+	email = yuichisugio@users.noreply.github.com
+[core]
+        editor = code --wait
+        filemode = true
+        hooksPath = ~/.git_template/hooks
+	quotepath = false
+	autocrlf = input
+	whitespace = trailing-space,space-before-tab
+	precomposeunicode = true
+	pager = delta
+[color]
+	ui = true
+	[color "branch"]
+	current = yellow reverse
+	local = yellow
+	remote = green
+[color "diff"]
+	meta = yellow bold
+	frag = magenta bold
+	old = red bold
+	new = green bold
+[color "status"]
+	added = yellow
+	changed = green
+	untracked = cyan
+[alias]
+	s = status
+        a = add .
+        an = add -N
+        c = commit
+        ci = commit --allow-empty -m 'initial commit'
+        p = push
+	pom = push origin main
+        ph = push origin HEAD
+        m = merge
+        mm = "!git merge $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')"
+        f = fetch origin
+        d = diff
+        l = log
+        co = checkout
+        cb = checkout -b
+        cm = "!git checkout $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')"
+        pl = "!git pull origin $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')"
+        w = worktree
+        wb = "!f() { WORKTREE_PATH=../$(basename $(pwd))-${1}; git worktree add $WORKTREE_PATH $2; }; f"
+        wd = worktree remove .
+	wl = worktree list
+[push]
+	default = current
+	autoSetupRemote = true
+[pull]
+        rebase = true
+	default = current
+[branch]
+        autoSetupRebase = always
+[submodule]
+        recurse = true
+[url "git@github.com:"]
+        pushInsteadOf = https://github.com/
+        pushInsteadOf = git://github.com/
+	insteadOf = https://github.com/
+[url "git@gist.github.com:"]
+        pushInsteadOf = https://gist.github.com/
+        pushInsteadOf = git://gist.github.com/
+[init]
+	defaultBranch = main
+[help]
+	autocorrect = 1
