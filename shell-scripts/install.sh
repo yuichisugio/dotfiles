@@ -96,8 +96,6 @@ main() {
     setup_zsh "$backup_dir"
     setup_claude "$backup_dir"
     setup_git "$backup_dir"
-    setup_vscode "$(detect_os)" "$backup_dir"
-    setup_cursor "$(detect_os)" "$backup_dir"
     
     log_info "Dotfiles installation completed successfully!"
     log_info "All original files have been backed up to: $backup_dir"
