@@ -4,8 +4,8 @@
 ## **概要**
 - **`install.sh`の説明**
   - `.zshrc`,`.gitconfig`,`.gitignore_global`などの設定ファイルをインストール
-- **setup-cursor-vscode.shの使い方**
-  - vscode,cursorのsetting.json,keybinding.jsonをインストールする  
+- **`setup-cursor-vscode.sh`の使い方**
+  - vscode,cursorの`setting.json`,`keybinding.json`をインストールする  
 ## **`install.sh`の使い方**
 1. cloneするPATHにcdで移動する。ホームディレクトリ以外にcloneする必要がある
 2. `git clone https://github.com/yuichisugio/dotfiles.git`を実行
