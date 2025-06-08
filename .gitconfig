@@ -15,6 +15,7 @@
 	whitespace = trailing-space,space-before-tab
 	precomposeunicode = true
 	pager = delta
+	excludesfile = /Users/<username>/.gitignore_global
 [color]
 	ui = true
 	[color "branch"]

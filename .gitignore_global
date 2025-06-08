@@ -1,0 +1,113 @@
+# OS関連のファイル
+# macOSが自動生成するメタデータファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windowsが生成するファイル
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux関連
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# Vim関連
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs関連
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# テンポラリファイル
+*.tmp
+*.temp
+*.log
+*.cache
+
+# 個人の環境設定ファイル
+.env.local
+.env.*.local
+
+# バックアップファイル
+*.bak
+*.backup
+*.orig
+
+# アーカイブファイル（通常は一時的）
+*.zip
+*.tar.gz
+*.rar
+
+# 実行ファイル
+*.exe
+*.out
+*.app
+
+# デバッグファイル
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+coverage/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+/html
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+dist
+
