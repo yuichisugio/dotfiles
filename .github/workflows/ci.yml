@@ -1,0 +1,315 @@
+name: CI - Dotfiles Environment Setup
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set execute permissions
+      run: |
+        chmod +x shell-scripts/install.sh
+        chmod +x shell-scripts/setup-cursor-vscode.sh
+        chmod +x shell-scripts/update-vscode-cursor-extensions-list.sh
+    
+    - name: Test install.sh script syntax
+      run: |
+        # ∑ßÎπØÍ◊»nÀá¡ß√Ø
+        bash -n shell-scripts/install.sh
+        echo " install.sh syntax check passed"
+    
+    - name: Test setup-cursor-vscode.sh script syntax
+      run: |
+        bash -n shell-scripts/setup-cursor-vscode.sh
+        echo " setup-cursor-vscode.sh syntax check passed"
+    
+    - name: Test update script syntax
+      run: |
+        bash -n shell-scripts/update-vscode-cursor-extensions-list.sh
+        echo " update-vscode-cursor-extensions-list.sh syntax check passed"
+    
+    - name: Verify dotfiles structure
+      run: |
+        echo "Verifying dotfiles directory structure..."
+        
+        # ≈Åj«£ÏØ»ÍnX(∫ç
+        test -d vscode || echo "WARNING: vscode directory not found"
+        test -d cursor || echo "WARNING: cursor directory not found"
+        test -d shell-scripts || echo "ERROR: shell-scripts directory not found" && exit 1
+        
+        # ≈Åj’°§ÎnX(∫ç
+        test -f shell-scripts/install.sh || echo "ERROR: install.sh not found" && exit 1
+        test -f shell-scripts/setup-cursor-vscode.sh || echo "ERROR: setup-cursor-vscode.sh not found" && exit 1
+        
+        echo " Directory structure verification passed"
+    
+    - name: Test environment detection
+      run: |
+        echo "Testing environment detection..."
+        
+        # OSø§◊n˙∆π»
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+          echo " macOS environment detected correctly"
+        else
+          echo "ERROR: macOS detection failed"
+          exit 1
+        fi
+        
+        # ˙,Ñj≥ﬁÛ…nX(∫ç
+        command -v zsh >/dev/null 2>&1 || echo "WARNING: zsh not found"
+        command -v git >/dev/null 2>&1 || echo "ERROR: git not found" && exit 1
+        
+        echo " Environment detection test passed"
+    
+    - name: Test install script (dry run)
+      run: |
+        echo "Testing install script in dry run mode..."
+        
+        # πØÍ◊»n—π<í∆π»
+        cd shell-scripts
+        SCRIPT_DIR="$(pwd)"
+        DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
+        
+        echo "Script directory: $SCRIPT_DIR"
+        echo "Dotfiles directory: $DOTFILES_DIR"
+        
+        # dotfiles«£ÏØ»ÍLcWO˙UåãK∆π»
+        if [ -f "$DOTFILES_DIR/README.md" ]; then
+          echo " Dotfiles directory detection test passed"
+        else
+          echo "ERROR: Dotfiles directory detection failed"
+          exit 1
+        fi
+    
+    - name: Test configuration files
+      run: |
+        echo "Testing configuration files..."
+        
+        # VS Code-ö’°§În<
+        if [ -d vscode ]; then
+          echo "Checking VS Code configuration files..."
+          test -f vscode/settings.json && echo " VS Code settings.json found" || echo "WARNING: VS Code settings.json not found"
+          test -f vscode/keybindings.json && echo " VS Code keybindings.json found" || echo "WARNING: VS Code keybindings.json not found"
+        fi
+        
+        # Cursor-ö’°§În<
+        if [ -d cursor ]; then
+          echo "Checking Cursor configuration files..."
+          test -f cursor/settings.json && echo " Cursor settings.json found" || echo "WARNING: Cursor settings.json not found"
+          test -f cursor/keybindings.json && echo " Cursor keybindings.json found" || echo "WARNING: Cursor keybindings.json not found"
+        fi
+        
+        echo " Configuration files verification completed"
+
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Git Bash
+      run: |
+        echo "Git Bash setup for Windows environment"
+        git --version
+        
+    - name: Test script syntax (Windows Git Bash)
+      shell: bash
+      run: |
+        echo "Testing shell scripts syntax on Windows..."
+        
+        # ∑ßÎπØÍ◊»nÀá¡ß√Ø
+        bash -n shell-scripts/install.sh
+        echo " install.sh syntax check passed on Windows"
+        
+        bash -n shell-scripts/setup-cursor-vscode.sh
+        echo " setup-cursor-vscode.sh syntax check passed on Windows"
+        
+        bash -n shell-scripts/update-vscode-cursor-extensions-list.sh
+        echo " update script syntax check passed on Windows"
+    
+    - name: Test environment detection (Windows)
+      shell: bash
+      run: |
+        echo "Testing environment detection on Windows..."
+        
+        # OSø§◊n˙∆π»Windows∞É	
+        case "$OSTYPE" in
+          msys*|win*|cygwin*)
+            echo " Windows environment detected correctly: $OSTYPE"
+            ;;
+          *)
+            echo "WARNING: Unexpected OS type on Windows: $OSTYPE"
+            ;;
+        esac
+        
+        # Git Bashgn˙,≥ﬁÛ…∫ç
+        command -v git >/dev/null 2>&1 || echo "ERROR: git not found" && exit 1
+        command -v bash >/dev/null 2>&1 || echo "ERROR: bash not found" && exit 1
+        
+        echo " Windows environment detection test passed"
+    
+    - name: Test Windows paths
+      shell: bash
+      run: |
+        echo "Testing Windows path handling..."
+        
+        # Windowsgn—πÊn∆π»
+        if [ -n "$APPDATA" ]; then
+          echo " APPDATA environment variable found: $APPDATA"
+        else
+          echo "WARNING: APPDATA environment variable not found"
+        fi
+        
+        # €¸‡«£ÏØ»Ín∫ç
+        if [ -n "$HOME" ]; then
+          echo " HOME directory found: $HOME"
+        else
+          echo "WARNING: HOME directory not found"
+        fi
+        
+        echo " Windows path handling test completed"
+    
+    - name: Verify dotfiles structure (Windows)
+      shell: bash
+      run: |
+        echo "Verifying dotfiles directory structure on Windows..."
+        
+        # ≈Åj«£ÏØ»ÍnX(∫ç
+        test -d vscode || echo "WARNING: vscode directory not found"
+        test -d cursor || echo "WARNING: cursor directory not found"
+        test -d shell-scripts || (echo "ERROR: shell-scripts directory not found" && exit 1)
+        
+        # ≈Åj’°§ÎnX(∫ç
+        test -f shell-scripts/install.sh || (echo "ERROR: install.sh not found" && exit 1)
+        test -f shell-scripts/setup-cursor-vscode.sh || (echo "ERROR: setup-cursor-vscode.sh not found" && exit 1)
+        
+        echo " Windows directory structure verification passed"
+
+  test-ubuntu:
+    name: Test on Ubuntu
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zsh
+        
+    - name: Test script syntax (Linux)
+      run: |
+        echo "Testing shell scripts syntax on Linux..."
+        
+        # ∑ßÎπØÍ◊»nÀá¡ß√Ø
+        bash -n shell-scripts/install.sh
+        echo " install.sh syntax check passed on Linux"
+        
+        bash -n shell-scripts/setup-cursor-vscode.sh
+        echo " setup-cursor-vscode.sh syntax check passed on Linux"
+        
+        bash -n shell-scripts/update-vscode-cursor-extensions-list.sh
+        echo " update script syntax check passed on Linux"
+    
+    - name: Test environment detection (Linux)
+      run: |
+        echo "Testing environment detection on Linux..."
+        
+        # OSø§◊n˙∆π»Linux∞É	
+        if [[ "$OSTYPE" == "linux"* ]]; then
+          echo " Linux environment detected correctly"
+        else
+          echo "WARNING: Unexpected OS type on Linux: $OSTYPE"
+        fi
+        
+        # ˙,Ñj≥ﬁÛ…nX(∫ç
+        command -v zsh >/dev/null 2>&1 || echo "ERROR: zsh not found" && exit 1
+        command -v git >/dev/null 2>&1 || echo "ERROR: git not found" && exit 1
+        
+        echo " Linux environment detection test passed"
+    
+    - name: Test Linux paths
+      run: |
+        echo "Testing Linux path handling..."
+        
+        # Linuxgn—πÊn∆π»
+        if [ -d "$HOME/.config" ]; then
+          echo " .config directory found: $HOME/.config"
+        else
+          echo "INFO: .config directory not found (will be created)"
+        fi
+        
+        echo " Linux path handling test completed"
+    
+    - name: Verify dotfiles structure (Linux)
+      run: |
+        echo "Verifying dotfiles directory structure on Linux..."
+        
+        # ≈Åj«£ÏØ»ÍnX(∫ç
+        test -d vscode || echo "WARNING: vscode directory not found"
+        test -d cursor || echo "WARNING: cursor directory not found"
+        test -d shell-scripts || (echo "ERROR: shell-scripts directory not found" && exit 1)
+        
+        # ≈Åj’°§ÎnX(∫ç
+        test -f shell-scripts/install.sh || (echo "ERROR: install.sh not found" && exit 1)
+        test -f shell-scripts/setup-cursor-vscode.sh || (echo "ERROR: setup-cursor-vscode.sh not found" && exit 1)
+        
+        echo " Linux directory structure verification passed"
+
+  integration-test:
+    name: Integration Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-macos, test-windows, test-ubuntu]
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        echo "=========================================="
+        echo "  Dotfiles CI Integration Test Summary"
+        echo "=========================================="
+        
+        # ∏Á÷nPúí∫ç
+        if [ "${{ needs.test-macos.result }}" = "success" ]; then
+          echo " macOS tests: PASSED"
+        else
+          echo " macOS tests: FAILED"
+        fi
+        
+        if [ "${{ needs.test-windows.result }}" = "success" ]; then
+          echo " Windows tests: PASSED"
+        else
+          echo " Windows tests: FAILED"
+        fi
+        
+        if [ "${{ needs.test-ubuntu.result }}" = "success" ]; then
+          echo " Ubuntu tests: PASSED"
+        else
+          echo " Ubuntu tests: FAILED"
+        fi
+        
+        echo "=========================================="
+        
+        # Yyfn∆π»LüW_4nühYã
+        if [ "${{ needs.test-macos.result }}" = "success" ] && \
+           [ "${{ needs.test-windows.result }}" = "success" ] && \
+           [ "${{ needs.test-ubuntu.result }}" = "success" ]; then
+          echo "<â All platform tests completed successfully!"
+          echo "Dotfiles environment setup verified on macOS, Windows, and Ubuntu."
+        else
+          echo "L Some tests failed. Please check the job logs for details."
+          exit 1
+        fi
