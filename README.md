@@ -70,6 +70,14 @@ chmod +x shell-scripts/setup-cursor-vscode.sh
 ./shell-scripts/setup-cursor-vscode.sh
 ```
 
+### 3. 拡張機能の更新
+
+```bash
+# 拡張機能リストの更新
+chmod +x ./shell-scripts/update-vscode-cursor-extensions-list.sh
+./shell-scripts/update-vscode-cursor-extensions-list.sh
+```
+
 ## 📋 各設定ファイルの詳細説明
 
 ### シェル環境設定
@@ -186,11 +194,6 @@ Claude AI を使用したテスト駆動開発の指針：
 ```
 
 ### 拡張機能の管理
-
-```bash
-# 拡張機能リストの更新
-./shell-scripts/update-vscode-cursor-extensions-list.sh
-```
 
 ## 🔍 トラブルシューティング
 
