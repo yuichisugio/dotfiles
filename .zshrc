@@ -82,6 +82,11 @@ export GREP_COLOR='1;32'
 # Homebrewのパス設定
 export PATH="/opt/homebrew/bin:$PATH"
 
+# ターミナルに表示する%の部分を、カレントディレクトリPATHのみ表示して、usernameなどの表示は無しにする
+export PS1="%~ $ "
+
+export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" && export PATH="/usr/local/node20-arm64/bin:$PATH" && export PNPM_HOME="/Users/yuichi.sugio/Library/pnpm" && export PATH="$PNPM_HOME:$PATH"
+
 # ===========================================
 # Development Tools Configuration
 # ===========================================
