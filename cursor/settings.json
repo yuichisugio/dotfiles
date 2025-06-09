@@ -76,7 +76,6 @@
         "*.tsx": "${capture}.*.tsx"
     },
     "explorer.fileNesting.enabled": true,
-    "terminal.integrated.defaultProfile.linux": "zsh"
+    "terminal.integrated.defaultProfile.linux": "zsh",
     "terminal.integrated.scrollback": 20000
 }
-

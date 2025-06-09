@@ -100,33 +100,6 @@
       "mcp__devinwiki__read_wiki_contents",
       "mcp__devinwiki__ask_question"
     ],
-    "deny": [
-      "Bash(rm:*)",
-      "Bash(rmdir:*)",
-      "Bash(sudo:*)",
-      "Bash(chroot:*)",
-      "Bash(exec:*)",
-      "Bash(reboot:*)",
-      "Bash(shutdown:*)",
-      "Bash(poweroff:*)",
-      "Bash(kill:*)",
-      "Bash(killall:*)",
-      "Bash(crontab:*)",
-      "Bash(useradd:*)",
-      "Bash(userdel:*)",
-      "Bash(usermod:*)",
-      "Bash(groupadd:*)",
-      "Bash(groupdel:*)",
-      "Bash(groupmod:*)",
-      "Bash(passwd:*)",
-      "Bash(chage:*)",
-      "Bash(chpasswd:*)",
-      "Bash(su:*)",
-      "Bash(sudoedit:*)",
-      "Bash(visudo:*)",
-      "Bash(iptables:*)",
-      "Bash(chmod:*)",
-      "Bash(chown:*)"
-    ]
+    "deny": []
   }
 }
