@@ -147,3 +147,8 @@ fi
 if [[ -f ~/.zsh/projects.zsh ]]; then
     source ~/.zsh/projects.zsh
 fi
+
+# ===========================================
+# Plugin
+# ===========================================
+source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
