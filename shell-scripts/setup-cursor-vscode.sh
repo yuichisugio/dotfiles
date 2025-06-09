@@ -124,13 +124,30 @@ get_cursor_config_path() {
     esac
 }
 
-# dotfilesリポジトリのパス取得
-# スクリプトの実行場所から相対的にdotfilesディレクトリを特定します
+# dotfilesリポジトリのパス取得（修正版）
+# より柔軟にdotfilesのルートディレクトリを検出します
 get_dotfiles_path() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local current_dir="$script_dir"
     
-    # スクリプトがscripts/ディレクトリ内にある場合の処理
-    if [[ "$(basename "$script_dir")" == "scripts" ]]; then
+    # dotfilesのルートディレクトリを探索
+    # .gitconfigや.zshrcなどの典型的なdotfilesが存在するディレクトリを探す
+    while [ "$current_dir" != "/" ]; do
+        # dotfilesの典型的なファイルやディレクトリが存在するかチェック
+        if [ -f "$current_dir/.gitconfig" ] || [ -f "$current_dir/.zshrc" ] || \
+           [ -d "$current_dir/vscode" ] || [ -d "$current_dir/cursor" ]; then
+            echo "$current_dir"
+            return 0
+        fi
+        
+        # 親ディレクトリに移動
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # 見つからない場合は、スクリプトディレクトリの親ディレクトリを返す
+    # （shell-scriptsディレクトリから実行されている場合を想定）
+    local basename_dir="$(basename "$script_dir")"
+    if [[ "$basename_dir" == "shell-scripts" || "$basename_dir" == "scripts" ]]; then
         echo "$(dirname "$script_dir")"
     else
         echo "$script_dir"
@@ -237,35 +254,121 @@ sync_snippets_directory() {
 }
 
 # =============================================================================
-# 拡張機能管理関数群
+# 拡張機能管理関数群（改良版）
 # =============================================================================
 
-# 拡張機能リストファイルから拡張機能をインストール
-# extensions.txtファイルに記載された拡張機能を一括インストールします
-install_extensions_from_file() {
+# 現在インストールされている拡張機能を保存する関数
+# installed-extensions.txt に現在の拡張機能リストを保存します
+save_installed_extensions() {
     local app_name="$1"
-    local extensions_file="$2"
+    local output_file="$2"
     
-    # 拡張機能リストファイルの存在確認
-    if [ ! -f "$extensions_file" ]; then
-        log_warning "$app_name 用の拡張機能リストが見つかりません: $extensions_file"
-        log_info "以下のコマンドで現在の拡張機能リストを生成できます:"
-        log_info "$app_name --list-extensions > $extensions_file"
+    if command -v "$app_name" &> /dev/null; then
+        log_step "$app_name の現在の拡張機能リストを保存中..."
+        
+        # ディレクトリが存在しない場合は作成
+        mkdir -p "$(dirname "$output_file")"
+        
+        # 拡張機能リストを保存
+        "$app_name" --list-extensions > "$output_file"
+        local extension_count=$(wc -l < "$output_file")
+        
+        log_success "$extension_count 個の拡張機能を保存しました: $output_file"
+        
+        # 最初の5個の拡張機能を表示
+        if [ "$extension_count" -gt 0 ]; then
+            log_info "インストール済み拡張機能（抜粋）:"
+            head -5 "$output_file" | while read -r extension; do
+                echo "  - $extension"
+            done
+            
+            if [ "$extension_count" -gt 5 ]; then
+                log_info "  ... 他 $((extension_count - 5)) 個"
+            fi
+        fi
+    else
+        log_error "$app_name が見つからないため、拡張機能リストを保存できません"
+        return 1
+    fi
+}
+
+# 推奨拡張機能とインストール済み拡張機能の差分を計算する関数
+# recommended-extensions.txt と installed-extensions.txt の差分を計算します
+calculate_extensions_diff() {
+    local recommended_file="$1"
+    local installed_file="$2"
+    local diff_file="$3"
+    
+    # 推奨拡張機能ファイルが存在しない場合
+    if [ ! -f "$recommended_file" ]; then
+        log_warning "推奨拡張機能リストが見つかりません: $recommended_file"
         return 1
     fi
     
-    log_step "$app_name の拡張機能をインストール中..."
+    # インストール済みファイルが存在しない場合は空のファイルとして扱う
+    if [ ! -f "$installed_file" ]; then
+        log_info "インストール済み拡張機能リストが存在しません。全ての推奨拡張機能をインストール対象とします。"
+        # 推奨拡張機能をそのまま差分ファイルにコピー（コメント行を除く）
+        grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' > "$diff_file"
+    else
+        # 差分を計算（推奨拡張機能のうち、まだインストールされていないもの）
+        # コメント行と空行を除外して処理
+        grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' | \
+        while read -r extension; do
+            if ! grep -q "^${extension}$" "$installed_file"; then
+                echo "$extension"
+            fi
+        done > "$diff_file"
+    fi
     
+    # 差分の数を返す
+    if [ -f "$diff_file" ] && [ -s "$diff_file" ]; then
+        wc -l < "$diff_file"
+    else
+        echo "0"
+    fi
+}
+
+# 差分拡張機能のみをインストールする関数
+# 推奨拡張機能のうち、まだインストールされていないもののみをインストールします
+install_extension_diff() {
+    local app_name="$1"
+    local recommended_file="$2"
+    local installed_file="$3"
+    
+    # 一時ファイルで差分を管理
+    local temp_diff="/tmp/${app_name}_extensions_diff.txt"
+    
+    # 現在インストールされている拡張機能を保存
+    save_installed_extensions "$app_name" "$installed_file"
+    
+    # 差分を計算
+    local diff_count=$(calculate_extensions_diff "$recommended_file" "$installed_file" "$temp_diff")
+    
+    if [ "$diff_count" -eq 0 ]; then
+        log_success "全ての推奨拡張機能が既にインストールされています"
+        rm -f "$temp_diff"
+        return 0
+    fi
+    
+    log_step "$diff_count 個の新しい拡張機能をインストールします"
+    
+    # 差分拡張機能の一覧を表示
+    log_info "インストール予定の拡張機能:"
+    cat "$temp_diff" | while read -r extension; do
+        echo "  - $extension"
+    done
+    
+    echo ""
+    
+    # 差分拡張機能をインストール
     local installed_count=0
     local failed_count=0
     
-    # 拡張機能を一行ずつ読み込んでインストール
     while IFS= read -r extension; do
-        # 空行やコメント行（#で始まる行）をスキップ
-        if [[ -n "$extension" && ! "$extension" =~ ^[[:space:]]*# ]]; then
+        if [[ -n "$extension" ]]; then
             log_info "インストール中: $extension"
             
-            # 拡張機能のインストールを試行
             if "$app_name" --install-extension "$extension" --force &> /dev/null; then
                 log_success "インストール完了: $extension"
                 ((installed_count++))
@@ -274,49 +377,113 @@ install_extensions_from_file() {
                 ((failed_count++))
             fi
         fi
-    done < "$extensions_file"
+    done < "$temp_diff"
+    
+    # インストール後、再度インストール済みリストを更新
+    save_installed_extensions "$app_name" "$installed_file"
     
     # インストール結果のサマリーを表示
-    log_success "$app_name: $installed_count 個の拡張機能をインストールしました"
+    log_success "$app_name: $installed_count 個の拡張機能を新規インストールしました"
     if [ "$failed_count" -gt 0 ]; then
         log_warning "$app_name: $failed_count 個の拡張機能のインストールに失敗しました"
     fi
-}
-
-# 現在インストールされている拡張機能リストを生成
-# バックアップや設定の同期に使用します
-generate_current_extensions_list() {
-    local app_name="$1"
-    local output_file="$2"
     
-    if command -v "$app_name" &> /dev/null; then
-        log_step "$app_name の現在の拡張機能リストを生成中..."
-        
-        "$app_name" --list-extensions > "$output_file"
-        local extension_count=$(wc -l < "$output_file")
-        
-        log_success "$extension_count 個の拡張機能をリストアップしました: $output_file"
-        
-        # 最初の5個の拡張機能を表示
-        log_info "インストール済み拡張機能（抜粋）:"
-        head -5 "$output_file" | while read -r extension; do
-            echo "  - $extension"
-        done
-        
-        if [ "$extension_count" -gt 5 ]; then
-            log_info "  ... 他 $((extension_count - 5)) 個"
-        fi
-    else
-        log_error "$app_name が見つからないため、拡張機能リストを生成できません"
-        return 1
+    # 一時ファイルを削除
+    rm -f "$temp_diff"
+}
+
+# recommended-extensions.txt ファイルの確認と初期作成を行う関数
+# 推奨拡張機能リストが存在しない場合、サンプルファイルを作成します
+ensure_recommended_extensions_file() {
+    local app_name="$1"
+    local recommended_file="$2"
+    local installed_file="$3"
+    
+    # recommended-extensions.txt が既に存在する場合は何もしない
+    if [ -f "$recommended_file" ]; then
+        log_info "$app_name 用の推奨拡張機能リストが見つかりました: $recommended_file"
+        return 0
     fi
+    
+    log_warning "$app_name 用の推奨拡張機能リスト (recommended-extensions.txt) が見つかりません"
+    
+    # ディレクトリを作成
+    mkdir -p "$(dirname "$recommended_file")"
+    
+    # アプリケーションが存在する場合、現在の拡張機能から推奨リストを生成するか確認
+    if command -v "$app_name" &> /dev/null; then
+        # 現在インストールされている拡張機能を確認
+        local temp_file="/tmp/${app_name}_current_extensions.txt"
+        "$app_name" --list-extensions > "$temp_file" 2>/dev/null || true
+        
+        if [ -s "$temp_file" ]; then
+            local extension_count=$(wc -l < "$temp_file")
+            log_info "現在 $extension_count 個の拡張機能がインストールされています"
+            
+            echo ""
+            echo "現在インストールされている拡張機能から推奨リストを生成しますか？"
+            echo -n "生成する場合は 'y' を入力してください (y/N): "
+            read -r response
+            
+            if [[ "$response" =~ ^[Yy]$ ]]; then
+                # 推奨拡張機能リストを生成
+                echo "# $app_name 推奨拡張機能リスト" > "$recommended_file"
+                echo "# このファイルに推奨する拡張機能IDを1行ずつ記載してください" >> "$recommended_file"
+                echo "# 例: ms-python.python" >> "$recommended_file"
+                echo "# 生成日: $(date)" >> "$recommended_file"
+                echo "" >> "$recommended_file"
+                cat "$temp_file" >> "$recommended_file"
+                
+                log_success "推奨拡張機能リストを生成しました: $recommended_file"
+                
+                # インストール済みリストも保存
+                cp "$temp_file" "$installed_file"
+                log_success "インストール済み拡張機能リストも保存しました: $installed_file"
+                
+                rm -f "$temp_file"
+                return 0
+            fi
+        fi
+        
+        rm -f "$temp_file"
+    fi
+    
+    # サンプルのrecommended-extensions.txtを作成
+    cat > "$recommended_file" << EOF
+# $app_name 推奨拡張機能リスト
+# このファイルに推奨する拡張機能IDを1行ずつ記載してください
+# 例: ms-python.python
+# 
+# 以下は一般的な拡張機能の例です。必要に応じて編集してください。
+
+# 基本的な開発ツール
+# editorconfig.editorconfig
+# streetsidesoftware.code-spell-checker
+
+# Git関連
+# eamodio.gitlens
+# donjayamanne.githistory
+
+# コード整形・リンター
+# esbenp.prettier-vscode
+# dbaeumer.vscode-eslint
+
+# テーマ・アイコン
+# pkief.material-icon-theme
+# zhuangtongfa.material-theme
+EOF
+
+    log_info "サンプルの推奨拡張機能リストを作成しました: $recommended_file"
+    log_info "必要な拡張機能IDを追加してから、再度このスクリプトを実行してください"
+    
+    return 1
 }
 
 # =============================================================================
-# アプリケーション別設定関数群
+# アプリケーション別設定関数群（修正版）
 # =============================================================================
 
-# VS Code設定の包括的セットアップ
+# VS Code設定の包括的セットアップ（修正版）
 # 設定ファイル、スニペット、拡張機能を一括で管理します
 setup_vscode() {
     local app_name="code"
@@ -331,6 +498,10 @@ setup_vscode() {
     local config_dir=$(get_vscode_config_path)
     local dotfiles_dir=$(get_dotfiles_path)
     local vscode_dotfiles="$dotfiles_dir/vscode"
+    
+    # dotfilesディレクトリのデバッグ情報を表示
+    log_debug "検出されたdotfilesディレクトリ: $dotfiles_dir"
+    log_debug "VS Code設定を探しています: $vscode_dotfiles"
     
     # dotfiles内のVS Code設定ディレクトリ確認
     if [ ! -d "$vscode_dotfiles" ]; then
@@ -354,14 +525,24 @@ setup_vscode() {
     # スニペットの同期
     sync_snippets_directory "$app_name" "$config_dir" "$dotfiles_dir"
     
-    # 拡張機能のインストール
-    local extensions_file="$vscode_dotfiles/extensions.txt"
-    install_extensions_from_file "$app_name" "$extensions_file"
+    # 拡張機能の処理（新しい差分管理方式）
+    local recommended_file="$vscode_dotfiles/recommended-extensions.txt"
+    local installed_file="$vscode_dotfiles/installed-extensions.txt"
+    
+    # recommended-extensions.txt ファイルの確認と必要に応じて作成
+    ensure_recommended_extensions_file "$app_name" "$recommended_file" "$installed_file"
+    
+    # 推奨拡張機能の差分インストール
+    if [ -f "$recommended_file" ] && [ -s "$recommended_file" ]; then
+        install_extension_diff "$app_name" "$recommended_file" "$installed_file"
+    else
+        log_info "拡張機能のインストールをスキップしました"
+    fi
     
     log_success "=== VS Code 設定セットアップ完了 ==="
 }
 
-# Cursor設定の包括的セットアップ
+# Cursor設定の包括的セットアップ（修正版）
 # Cursorは VS Code と互換性がありながら独自の設定も持ちます
 setup_cursor() {
     local app_name="cursor"
@@ -376,6 +557,10 @@ setup_cursor() {
     local config_dir=$(get_cursor_config_path)
     local dotfiles_dir=$(get_dotfiles_path)
     local cursor_dotfiles="$dotfiles_dir/cursor"
+    
+    # dotfilesディレクトリのデバッグ情報を表示
+    log_debug "検出されたdotfilesディレクトリ: $dotfiles_dir"
+    log_debug "Cursor設定を探しています: $cursor_dotfiles"
     
     # dotfiles内のCursor設定ディレクトリ確認
     if [ ! -d "$cursor_dotfiles" ]; then
@@ -407,9 +592,19 @@ setup_cursor() {
     # スニペットの同期
     sync_snippets_directory "cursor" "$config_dir" "$dotfiles_dir"
     
-    # 拡張機能のインストール（CursorはVS Code互換）
-    local extensions_file="$cursor_dotfiles/extensions.txt"
-    install_extensions_from_file "$app_name" "$extensions_file"
+    # 拡張機能の処理（新しい差分管理方式）
+    local recommended_file="$cursor_dotfiles/recommended-extensions.txt"
+    local installed_file="$cursor_dotfiles/installed-extensions.txt"
+    
+    # recommended-extensions.txt ファイルの確認と必要に応じて作成
+    ensure_recommended_extensions_file "$app_name" "$recommended_file" "$installed_file"
+    
+    # 推奨拡張機能の差分インストール
+    if [ -f "$recommended_file" ] && [ -s "$recommended_file" ]; then
+        install_extension_diff "$app_name" "$recommended_file" "$installed_file"
+    else
+        log_info "拡張機能のインストールをスキップしました"
+    fi
     
     log_success "=== Cursor 設定セットアップ完了 ==="
 }
@@ -420,11 +615,11 @@ setup_git() {
     log_step "=== Git 設定セットアップ開始 ==="
     
     local dotfiles_dir=$(get_dotfiles_path)
-    local git_dotfiles="$dotfiles_dir/git"
+    local git_dotfiles="$dotfiles_dir"  # Gitファイルは通常ルートに配置
     
-    # Git設定ディレクトリの確認
-    if [ ! -d "$git_dotfiles" ]; then
-        log_warning "Git用dotfilesディレクトリが見つかりません: $git_dotfiles"
+    # Git設定ファイルの存在確認
+    if [ ! -f "$git_dotfiles/.gitconfig" ] && [ ! -f "$git_dotfiles/.gitignore_global" ]; then
+        log_warning "Git設定ファイルが見つかりません"
         log_info "Gitの設定セットアップをスキップします"
         return 0
     fi
@@ -474,7 +669,7 @@ show_configuration_diff() {
     fi
 }
 
-# 現在の設定をdotfilesにバックアップ
+# 現在の設定をdotfilesにバックアップ（修正版）
 backup_current_settings() {
     local dotfiles_dir=$(get_dotfiles_path)
     
@@ -491,8 +686,8 @@ backup_current_settings() {
         cp "$vscode_config/settings.json" "$vscode_dotfiles/" 2>/dev/null || true
         cp "$vscode_config/keybindings.json" "$vscode_dotfiles/" 2>/dev/null || true
         
-        # 拡張機能リストの生成
-        generate_current_extensions_list "code" "$vscode_dotfiles/extensions.txt"
+        # インストール済み拡張機能リストを保存
+        save_installed_extensions "code" "$vscode_dotfiles/installed-extensions.txt"
     fi
     
     # Cursor設定のバックアップ
@@ -506,14 +701,108 @@ backup_current_settings() {
         cp "$cursor_config/settings.json" "$cursor_dotfiles/" 2>/dev/null || true
         cp "$cursor_config/keybindings.json" "$cursor_dotfiles/" 2>/dev/null || true
         
-        # 拡張機能リストの生成
-        generate_current_extensions_list "cursor" "$cursor_dotfiles/extensions.txt"
+        # インストール済み拡張機能リストを保存
+        save_installed_extensions "cursor" "$cursor_dotfiles/installed-extensions.txt"
     fi
     
     log_success "=== 現在の設定のバックアップ完了 ==="
 }
 
-# 使用方法の表示
+# 拡張機能の管理状況を表示する関数
+show_extensions_status() {
+    local dotfiles_dir=$(get_dotfiles_path)
+    
+    log_step "=== 拡張機能の管理状況 ==="
+    
+    # VS Code の状況
+    if check_application_exists "code"; then
+        echo ""
+        log_info "VS Code 拡張機能の状況:"
+        
+        local vscode_dotfiles="$dotfiles_dir/vscode"
+        local recommended_file="$vscode_dotfiles/recommended-extensions.txt"
+        local installed_file="$vscode_dotfiles/installed-extensions.txt"
+        
+        if [ -f "$recommended_file" ]; then
+            local recommended_count=$(grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' | wc -l)
+            echo "  推奨拡張機能数: $recommended_count"
+        else
+            echo "  推奨拡張機能リスト: 未作成"
+        fi
+        
+        if [ -f "$installed_file" ]; then
+            local installed_count=$(wc -l < "$installed_file")
+            echo "  インストール済み拡張機能数: $installed_count"
+        else
+            echo "  インストール済みリスト: 未保存"
+        fi
+        
+        # 差分を表示
+        if [ -f "$recommended_file" ] && [ -f "$installed_file" ]; then
+            local temp_diff="/tmp/vscode_status_diff.txt"
+            local diff_count=$(calculate_extensions_diff "$recommended_file" "$installed_file" "$temp_diff")
+            echo "  未インストールの推奨拡張機能数: $diff_count"
+            
+            if [ "$diff_count" -gt 0 ] && [ "$diff_count" -le 10 ]; then
+                echo "  未インストールの拡張機能:"
+                cat "$temp_diff" | while read -r extension; do
+                    echo "    - $extension"
+                done
+            fi
+            rm -f "$temp_diff"
+        fi
+    fi
+    
+    # Cursor の状況
+    if check_application_exists "cursor"; then
+        echo ""
+        log_info "Cursor 拡張機能の状況:"
+        
+        local cursor_dotfiles="$dotfiles_dir/cursor"
+        
+        # VS Code設定を共有している場合の処理
+        if [ ! -d "$cursor_dotfiles" ]; then
+            cursor_dotfiles="$dotfiles_dir/vscode"
+        fi
+        
+        local recommended_file="$cursor_dotfiles/recommended-extensions.txt"
+        local installed_file="$cursor_dotfiles/installed-extensions.txt"
+        
+        if [ -f "$recommended_file" ]; then
+            local recommended_count=$(grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' | wc -l)
+            echo "  推奨拡張機能数: $recommended_count"
+        else
+            echo "  推奨拡張機能リスト: 未作成"
+        fi
+        
+        if [ -f "$installed_file" ]; then
+            local installed_count=$(wc -l < "$installed_file")
+            echo "  インストール済み拡張機能数: $installed_count"
+        else
+            echo "  インストール済みリスト: 未保存"
+        fi
+        
+        # 差分を表示
+        if [ -f "$recommended_file" ] && [ -f "$installed_file" ]; then
+            local temp_diff="/tmp/cursor_status_diff.txt"
+            local diff_count=$(calculate_extensions_diff "$recommended_file" "$installed_file" "$temp_diff")
+            echo "  未インストールの推奨拡張機能数: $diff_count"
+            
+            if [ "$diff_count" -gt 0 ] && [ "$diff_count" -le 10 ]; then
+                echo "  未インストールの拡張機能:"
+                cat "$temp_diff" | while read -r extension; do
+                    echo "    - $extension"
+                done
+            fi
+            rm -f "$temp_diff"
+        fi
+    fi
+    
+    echo ""
+    log_success "=== 拡張機能の管理状況表示完了 ==="
+}
+
+# 使用方法の表示（更新版）
 show_usage() {
     echo "使用方法: $0 [オプション]"
     echo ""
@@ -522,13 +811,20 @@ show_usage() {
     echo "オプション:"
     echo "  --backup        現在の設定をdotfilesにバックアップ"
     echo "  --diff          設定の変更差分を表示"
+    echo "  --status        拡張機能の管理状況を表示"
     echo "  --vscode-only   VS Code設定のみを適用"
     echo "  --cursor-only   Cursor設定のみを適用"
     echo "  --help          このヘルプを表示"
     echo ""
+    echo "拡張機能の管理について:"
+    echo "  - 推奨拡張機能は recommended-extensions.txt で管理"
+    echo "  - インストール済みは installed-extensions.txt に保存"
+    echo "  - 差分のみをインストールするので効率的"
+    echo ""
     echo "例:"
     echo "  $0                    # 全体セットアップを実行"
     echo "  $0 --backup           # 現在の設定をバックアップ"
+    echo "  $0 --status           # 拡張機能の状況確認"
     echo "  $0 --vscode-only      # VS Code設定のみを適用"
     echo "  $0 --diff             # 設定の変更差分を表示"
 }
@@ -543,6 +839,7 @@ main() {
     # スクリプト開始のアナウンス
     echo "========================================================"
     echo "  VS Code & Cursor 統合dotfiles管理スクリプト"
+    echo "  （拡張機能差分管理対応版）"
     echo "========================================================"
     
     local dotfiles_dir=$(get_dotfiles_path)
@@ -558,6 +855,10 @@ main() {
             ;;
         --diff)
             show_configuration_diff
+            return 0
+            ;;
+        --status)
+            show_extensions_status
             return 0
             ;;
         --vscode-only)
@@ -604,6 +905,7 @@ main() {
     check_application_exists "cursor" && echo "  - Cursor"
     
     echo ""
+    log_info "拡張機能の状況確認: $0 --status"
     log_info "設定の詳細確認: $0 --diff"
     log_info "設定のバックアップ: $0 --backup"
 }
