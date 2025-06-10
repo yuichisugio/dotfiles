@@ -111,3 +111,5 @@ yarn-error.log*
 next-env.d.ts
 dist
 
+# git関連
+git-worktrees/*

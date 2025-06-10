@@ -148,7 +148,18 @@ if [[ -f ~/.zsh/projects.zsh ]]; then
     source ~/.zsh/projects.zsh
 fi
 
+
 # ===========================================
 # Plugin
 # ===========================================
 source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# ===========================================
+# SSH
+# ===========================================
+
+# SSH Agent自動起動設定
+if [ -z "$SSH_AUTH_SOCK" ]; then
+  eval $(ssh-agent -s)
+  ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+fi
