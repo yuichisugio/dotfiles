@@ -69,7 +69,7 @@
 	AAAAAAIBAAAAAAAAACgAAAAAAAAAAAAAAAAAAANE
 	</data>
 	<key>Bell</key>
-	<false/>
+	<true/>
 	<key>CursorType</key>
 	<integer>0</integer>
 	<key>EnableSmoothResizing</key>
@@ -181,12 +181,22 @@
 	AFEAUwBaAGAAawB4AH4AiwCgAKcA0gD7AP0A/wEBAQYBDAEOARAQ9BD5EQQRDREaER0R
 	KhEzETgRQAAAAAAAAAIBAAAAAAAAACYAAAAAAAAAAAAAAAAAABFD
 	</data>
+	<key>ShowActiveProcessArgumentsInTabTitle</key>
+	<false/>
+	<key>ShowActiveProcessArgumentsInTitle</key>
+	<false/>
+	<key>ShowActiveProcessInTabTitle</key>
+	<false/>
+	<key>ShowActiveProcessInTitle</key>
+	<false/>
+	<key>ShowDimensionsInTitle</key>
+	<false/>
 	<key>ShowRepresentedURLPathInTitle</key>
 	<true/>
 	<key>ShowShellCommandInTitle</key>
-	<true/>
+	<false/>
 	<key>ShowTTYNameInTabTitle</key>
-	<true/>
+	<false/>
 	<key>TextBoldColor</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
@@ -238,9 +248,9 @@
 	<key>columnCount</key>
 	<integer>140</integer>
 	<key>name</key>
-	<string>Basic</string>
+	<string>mac-os_terminal-settings</string>
 	<key>rowCount</key>
-	<integer>41</integer>
+	<integer>39</integer>
 	<key>type</key>
 	<string>Window Settings</string>
 	<key>useOptionAsMetaKey</key>
