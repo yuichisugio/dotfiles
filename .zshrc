@@ -163,3 +163,4 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
   eval $(ssh-agent -s)
   ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 fi
+source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh

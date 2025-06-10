@@ -3,7 +3,13 @@
     "allow": [
       "Bash(claude mcp add playwright -s user npx @playwright/mcp@latest)",
       "Bash(claude mcp add-json playwright '{\"name\":\"playwright\",\"command\":\"npx\",\"args\":[\"@playwright/mcp@latest\"]}')",
-      "Bash(claude mcp get:*)"
+      "Bash(claude mcp get:*)",
+      "Bash(claude mcp add:*)",
+      "mcp__devinwiki__read_wiki_structure",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(claude mcp:*)",
+      "mcp__github__get_me",
+      "mcp__github__list_notifications"
     ],
     "deny": []
   }
