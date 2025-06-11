@@ -5,3 +5,5 @@
 */installed-extensions.txt
 */.DS_Store
 .DS_Store
+.claude/.update.lock
+.claude/ide

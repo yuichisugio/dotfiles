@@ -9,7 +9,10 @@
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(claude mcp:*)",
       "mcp__github__get_me",
-      "mcp__github__list_notifications"
+      "mcp__github__list_notifications",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }
