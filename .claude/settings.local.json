@@ -12,7 +12,8 @@
       "mcp__github__list_notifications",
       "Bash(node:*)",
       "Bash(npx:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(sudo npm install:*)"
     ],
     "deny": []
   }

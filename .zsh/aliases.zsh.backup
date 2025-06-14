@@ -54,29 +54,18 @@ alias nrd='npm run dev'
 alias nrb='npm run build'
 alias nrs='npm run start'
 alias nrt='npm run test'
-alias nty='npm run typecheck'
-alias nf='npm run format:fix'
-alias nl='npm run lint:fix'
 
 # pnpm
-alias pi='pnpm install'
-alias pa='pnpm add'
 alias prd='pnpm run dev'
 alias prb='pnpm run build'
 alias prs='pnpm run start'
 alias prt='pnpm run test'
-alias prty='pnpm run typecheck'
-alias prf='pnpm run format:fix'
-alias prl='pnpm run lint:fix'
 
 # yarn用
 alias yrd='yarn run dev'
 alias yrb='yarn run build'
 alias yrs='yarn run start'
 alias yrt='yarn run test'
-alias yty='yarn run typecheck'
-alias yf='yarn run format:fix'
-alias yl='yarn run lint:fix'
 
 # ===========================================
 # Utility Functions（関数形式のエイリアス）
@@ -101,3 +90,4 @@ psg() {
 port() {
     lsof -i :"$1"
 }
+

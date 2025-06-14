@@ -164,3 +164,4 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
   ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 fi
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+export PATH=~/.npm-global/bin:$PATH
