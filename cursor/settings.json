@@ -77,5 +77,6 @@
     },
     "explorer.fileNesting.enabled": true,
     "terminal.integrated.defaultProfile.linux": "zsh",
-    "terminal.integrated.scrollback": 20000
+    "terminal.integrated.scrollback": 20000,
+    "explorer.confirmDelete": false
 }
