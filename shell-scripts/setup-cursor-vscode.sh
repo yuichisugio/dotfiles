@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# unified-dotfiles-setup.sh - VS Code & Cursor 統合設定管理スクリプト
+# unified-dotfiles-setup.sh - VS Code & Cursor 統合設定管理スクリプト（WSL対応版）
 # このスクリプトは、VS CodeとCursorの設定を統合的に管理し、
-# 拡張機能のインストールまで自動化します
+# WSL環境でも適切に動作するように拡張されています
 
 set -e  # エラーが発生した場合にスクリプトを停止
 
@@ -20,7 +20,6 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
 # ログ出力関数群
-# これらの関数は、スクリプトの実行状況をユーザーに分かりやすく伝えるためのものです
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -46,46 +45,98 @@ log_step() {
 }
 
 # =============================================================================
-# システム環境検出関数
+# システム環境検出関数（WSL対応強化）
 # =============================================================================
 
-# OSタイプを検出する関数
-# この関数は、異なるOS間での設定ディレクトリパスの違いを吸収します
-detect_os() {
-    case "$OSTYPE" in
-        darwin*)    echo "macos" ;;      # macOS
-        linux*)     echo "linux" ;;     # Linux系OS
-        msys*|win*) echo "windows" ;;   # Windows (Git Bash/MSYS2)
-        cygwin*)    echo "windows" ;;   # Windows (Cygwin)
-        *)          echo "unknown" ;;   # 未対応OS
-    esac
+# 環境タイプを検出する関数
+detect_environment() {
+    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+        echo "wsl"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux"* ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "win"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+        echo "windows"
+    else
+        echo "unknown"
+    fi
 }
 
-# アプリケーションがインストールされているかチェックする関数
-# 引数: アプリケーション名（例: "code", "cursor"）
-# 戻り値: 0=存在, 1=存在しない
+# WSL環境での追加情報を取得
+get_wsl_info() {
+    if [[ $(detect_environment) == "wsl" ]]; then
+        # WSLのバージョンを確認
+        WSL_VERSION=$(wsl.exe -l -v 2>/dev/null | grep -E "^\s*\*" | awk '{print $4}' || echo "unknown")
+        # Windowsのユーザー名を取得
+        WINDOWS_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || whoami)
+        WINDOWS_HOME="/mnt/c/Users/$WINDOWS_USER"
+        
+        log_info "WSL Version: $WSL_VERSION"
+        log_info "Windows User: $WINDOWS_USER"
+        log_info "Windows Home: $WINDOWS_HOME"
+    fi
+}
+
+# アプリケーションがインストールされているかチェックする関数（WSL対応）
 check_application_exists() {
     local app_name="$1"
+    local environment=$(detect_environment)
     
-    if command -v "$app_name" &> /dev/null; then
-        log_success "$app_name が見つかりました"
-        return 0
-    else
-        log_warning "$app_name がインストールされていません。スキップします。"
+    if [[ "$environment" == "wsl" ]]; then
+        # WSL環境では、Windows側のアプリケーションをチェック
+        case "$app_name" in
+            "code")
+                # VS Codeの実行可能ファイルをチェック
+                if command -v code &> /dev/null || command -v code.exe &> /dev/null; then
+                    log_success "VS Code が見つかりました（WSL統合）"
+                    return 0
+                elif [[ -f "/mnt/c/Program Files/Microsoft VS Code/bin/code" ]] || \
+                     [[ -f "$WINDOWS_HOME/AppData/Local/Programs/Microsoft VS Code/bin/code" ]]; then
+                    log_success "VS Code が見つかりました（Windows側）"
+                    return 0
+                fi
+                ;;
+            "cursor")
+                # Cursorの実行可能ファイルをチェック
+                if command -v cursor &> /dev/null || command -v cursor.exe &> /dev/null; then
+                    log_success "Cursor が見つかりました（WSL統合）"
+                    return 0
+                elif [[ -f "/mnt/c/Program Files/Cursor/bin/cursor" ]] || \
+                     [[ -f "$WINDOWS_HOME/AppData/Local/Programs/cursor/cursor.exe" ]]; then
+                    log_success "Cursor が見つかりました（Windows側）"
+                    return 0
+                fi
+                ;;
+        esac
+        
+        log_warning "$app_name がインストールされていません。Windows側でインストールしてください。"
         return 1
+    else
+        # 通常の環境でのチェック
+        if command -v "$app_name" &> /dev/null; then
+            log_success "$app_name が見つかりました"
+            return 0
+        else
+            log_warning "$app_name がインストールされていません。スキップします。"
+            return 1
+        fi
     fi
 }
 
 # =============================================================================
-# 設定ディレクトリパス取得関数
+# 設定ディレクトリパス取得関数（WSL対応）
 # =============================================================================
 
 # VS Codeの設定ディレクトリパスを取得
-# OSごとに異なる設定ディレクトリのパスを返します
 get_vscode_config_path() {
-    local os=$(detect_os)
+    local environment=$(detect_environment)
     
-    case $os in
+    case $environment in
+        "wsl")
+            # WSL環境では、Windows側の設定ディレクトリを使用
+            echo "$WINDOWS_HOME/AppData/Roaming/Code/User"
+            ;;
         "macos")
             echo "$HOME/Library/Application Support/Code/User"
             ;;
@@ -96,18 +147,21 @@ get_vscode_config_path() {
             echo "$APPDATA/Code/User"
             ;;
         *)
-            log_error "サポートされていないOS: $os"
+            log_error "サポートされていない環境: $environment"
             return 1
             ;;
     esac
 }
 
 # Cursorの設定ディレクトリパスを取得
-# Cursorは比較的新しいエディタのため、設定パスの確認が重要です
 get_cursor_config_path() {
-    local os=$(detect_os)
+    local environment=$(detect_environment)
     
-    case $os in
+    case $environment in
+        "wsl")
+            # WSL環境では、Windows側の設定ディレクトリを使用
+            echo "$WINDOWS_HOME/AppData/Roaming/Cursor/User"
+            ;;
         "macos")
             echo "$HOME/Library/Application Support/Cursor/User"
             ;;
@@ -118,22 +172,19 @@ get_cursor_config_path() {
             echo "$APPDATA/Cursor/User"
             ;;
         *)
-            log_error "サポートされていないOS: $os"
+            log_error "サポートされていない環境: $environment"
             return 1
             ;;
     esac
 }
 
-# dotfilesリポジトリのパス取得（修正版）
-# より柔軟にdotfilesのルートディレクトリを検出します
+# dotfilesリポジトリのパス取得
 get_dotfiles_path() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local current_dir="$script_dir"
     
     # dotfilesのルートディレクトリを探索
-    # .gitconfigや.zshrcなどの典型的なdotfilesが存在するディレクトリを探す
     while [ "$current_dir" != "/" ]; do
-        # dotfilesの典型的なファイルやディレクトリが存在するかチェック
         if [ -f "$current_dir/.gitconfig" ] || [ -f "$current_dir/.zshrc" ] || \
            [ -d "$current_dir/vscode" ] || [ -d "$current_dir/cursor" ]; then
             echo "$current_dir"
@@ -145,12 +196,51 @@ get_dotfiles_path() {
     done
     
     # 見つからない場合は、スクリプトディレクトリの親ディレクトリを返す
-    # （shell-scriptsディレクトリから実行されている場合を想定）
     local basename_dir="$(basename "$script_dir")"
     if [[ "$basename_dir" == "shell-scripts" || "$basename_dir" == "scripts" ]]; then
         echo "$(dirname "$script_dir")"
     else
         echo "$script_dir"
+    fi
+}
+
+# =============================================================================
+# WSL環境での特別な処理
+# =============================================================================
+
+# WSL環境でのVS Code/Cursor実行コマンドのセットアップ
+setup_wsl_commands() {
+    local environment=$(detect_environment)
+    
+    if [[ "$environment" != "wsl" ]]; then
+        return 0
+    fi
+    
+    log_step "WSL環境用のコマンドエイリアスを設定中..."
+    
+    # VS Code用のエイリアス作成
+    if ! command -v code &> /dev/null; then
+        # codeコマンドのシンボリックリンクを作成
+        if [[ -f "/mnt/c/Program Files/Microsoft VS Code/bin/code" ]]; then
+            sudo ln -sf "/mnt/c/Program Files/Microsoft VS Code/bin/code" /usr/local/bin/code
+        elif [[ -f "$WINDOWS_HOME/AppData/Local/Programs/Microsoft VS Code/bin/code" ]]; then
+            sudo ln -sf "$WINDOWS_HOME/AppData/Local/Programs/Microsoft VS Code/bin/code" /usr/local/bin/code
+        fi
+    fi
+    
+    # Cursor用のエイリアス作成
+    if ! command -v cursor &> /dev/null; then
+        # cursorコマンドのシンボリックリンクを作成
+        if [[ -f "/mnt/c/Program Files/Cursor/bin/cursor" ]]; then
+            sudo ln -sf "/mnt/c/Program Files/Cursor/bin/cursor" /usr/local/bin/cursor
+        elif [[ -f "$WINDOWS_HOME/AppData/Local/Programs/cursor/cursor.exe" ]]; then
+            # シェルラッパーを作成
+            sudo tee /usr/local/bin/cursor > /dev/null <<'EOF'
+#!/bin/bash
+exec "$WINDOWS_HOME/AppData/Local/Programs/cursor/cursor.exe" "$@"
+EOF
+            sudo chmod +x /usr/local/bin/cursor
+        fi
     fi
 }
 
@@ -164,7 +254,6 @@ generate_backup_timestamp() {
 }
 
 # 設定ファイルの包括的バックアップを作成
-# この関数は、既存の設定を安全に保管してから新しい設定を適用します
 create_comprehensive_backup() {
     local app_name="$1"
     local config_dir="$2"
@@ -182,7 +271,17 @@ create_comprehensive_backup() {
         log_success "設定ファイルをバックアップしました: $backup_dir"
         
         # 拡張機能リストもバックアップ（該当アプリが存在する場合）
-        if command -v "$app_name" &> /dev/null; then
+        # WSL環境では--list-extensionsはWindows側で実行
+        local environment=$(detect_environment)
+        if [[ "$environment" == "wsl" ]]; then
+            local extensions_backup="$backup_dir/extensions-$timestamp.txt"
+            if [[ "$app_name" == "code" ]]; then
+                code.exe --list-extensions > "$extensions_backup" 2>/dev/null || true
+            elif [[ "$app_name" == "cursor" ]]; then
+                cursor.exe --list-extensions > "$extensions_backup" 2>/dev/null || true
+            fi
+            log_success "拡張機能リストをバックアップしました: $extensions_backup"
+        elif command -v "$app_name" &> /dev/null; then
             local extensions_backup="$backup_dir/extensions-$timestamp.txt"
             "$app_name" --list-extensions > "$extensions_backup" 2>/dev/null || true
             log_success "拡張機能リストをバックアップしました: $extensions_backup"
@@ -193,11 +292,10 @@ create_comprehensive_backup() {
 }
 
 # =============================================================================
-# 設定ファイル管理関数群
+# 設定ファイル管理関数群（WSL対応）
 # =============================================================================
 
-# シンボリックリンクを安全に作成する関数
-# 既存ファイルとの競合を避けながら、設定ファイルをリンクします
+# シンボリックリンクを安全に作成する関数（WSL対応）
 create_safe_symlink() {
     local source_file="$1"
     local target_file="$2"
@@ -218,61 +316,62 @@ create_safe_symlink() {
         rm "$target_file"
     fi
     
-    # シンボリックリンクを作成
-    ln -s "$source_file" "$target_file"
-    log_success "$file_description のシンボリックリンクを作成しました"
-}
-
-# スニペットディレクトリの同期
-# カスタムスニペットファイルを効率的に管理します
-sync_snippets_directory() {
-    local app_name="$1"
-    local config_dir="$2"
-    local dotfiles_dir="$3"
-    
-    local snippets_source="$dotfiles_dir/$app_name/snippets"
-    local snippets_target="$config_dir/snippets"
-    
-    if [ -d "$snippets_source" ]; then
-        log_step "$app_name のスニペットを同期中..."
-        
-        # スニペットディレクトリを作成
-        mkdir -p "$snippets_target"
-        
-        # 各スニペットファイルをリンク
-        for snippet_file in "$snippets_source"/*.json; do
-            if [ -f "$snippet_file" ]; then
-                local filename=$(basename "$snippet_file")
-                local target_path="$snippets_target/$filename"
-                
-                create_safe_symlink "$snippet_file" "$target_path" "スニペット($filename)"
-            fi
-        done
+    # WSL環境では通常のコピーを使用（シンボリックリンクはWindows側で問題を起こす可能性がある）
+    local environment=$(detect_environment)
+    if [[ "$environment" == "wsl" ]]; then
+        cp "$source_file" "$target_file"
+        log_success "$file_description をコピーしました（WSL環境）"
     else
-        log_info "$app_name 用のスニペットディレクトリが見つかりません。スキップします。"
+        # 通常の環境ではシンボリックリンクを作成
+        ln -s "$source_file" "$target_file"
+        log_success "$file_description のシンボリックリンクを作成しました"
     fi
 }
 
 # =============================================================================
-# 拡張機能管理関数群（改良版）
+# 拡張機能管理関数群（WSL対応）
 # =============================================================================
 
-# 現在インストールされている拡張機能を保存する関数
-# installed-extensions.txt に現在の拡張機能リストを保存します
+# 現在インストールされている拡張機能を保存する関数（WSL対応）
 save_installed_extensions() {
     local app_name="$1"
     local output_file="$2"
+    local environment=$(detect_environment)
     
-    if command -v "$app_name" &> /dev/null; then
-        log_step "$app_name の現在の拡張機能リストを保存中..."
-        
-        # ディレクトリが存在しない場合は作成
-        mkdir -p "$(dirname "$output_file")"
-        
-        # 拡張機能リストを保存
-        "$app_name" --list-extensions > "$output_file"
+    log_step "$app_name の現在の拡張機能リストを保存中..."
+    
+    # ディレクトリが存在しない場合は作成
+    mkdir -p "$(dirname "$output_file")"
+    
+    # WSL環境での拡張機能リスト取得
+    if [[ "$environment" == "wsl" ]]; then
+        if [[ "$app_name" == "code" ]]; then
+            if command -v code.exe &> /dev/null; then
+                code.exe --list-extensions > "$output_file" 2>/dev/null || true
+            else
+                log_error "VS Code (Windows側) が見つかりません"
+                return 1
+            fi
+        elif [[ "$app_name" == "cursor" ]]; then
+            if command -v cursor.exe &> /dev/null; then
+                cursor.exe --list-extensions > "$output_file" 2>/dev/null || true
+            else
+                log_error "Cursor (Windows側) が見つかりません"
+                return 1
+            fi
+        fi
+    else
+        # 通常の環境での拡張機能リスト取得
+        if command -v "$app_name" &> /dev/null; then
+            "$app_name" --list-extensions > "$output_file"
+        else
+            log_error "$app_name が見つからないため、拡張機能リストを保存できません"
+            return 1
+        fi
+    fi
+    
+    if [ -f "$output_file" ]; then
         local extension_count=$(wc -l < "$output_file")
-        
         log_success "$extension_count 個の拡張機能を保存しました: $output_file"
         
         # 最初の5個の拡張機能を表示
@@ -286,210 +385,25 @@ save_installed_extensions() {
                 log_info "  ... 他 $((extension_count - 5)) 個"
             fi
         fi
-    else
-        log_error "$app_name が見つからないため、拡張機能リストを保存できません"
-        return 1
     fi
-}
-
-# 推奨拡張機能とインストール済み拡張機能の差分を計算する関数
-# recommended-extensions.txt と installed-extensions.txt の差分を計算します
-calculate_extensions_diff() {
-    local recommended_file="$1"
-    local installed_file="$2"
-    local diff_file="$3"
-    
-    # 推奨拡張機能ファイルが存在しない場合
-    if [ ! -f "$recommended_file" ]; then
-        log_warning "推奨拡張機能リストが見つかりません: $recommended_file"
-        return 1
-    fi
-    
-    # インストール済みファイルが存在しない場合は空のファイルとして扱う
-    if [ ! -f "$installed_file" ]; then
-        log_info "インストール済み拡張機能リストが存在しません。全ての推奨拡張機能をインストール対象とします。"
-        # 推奨拡張機能をそのまま差分ファイルにコピー（コメント行を除く）
-        grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' > "$diff_file"
-    else
-        # 差分を計算（推奨拡張機能のうち、まだインストールされていないもの）
-        # コメント行と空行を除外して処理
-        grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' | \
-        while read -r extension; do
-            if ! grep -q "^${extension}$" "$installed_file"; then
-                echo "$extension"
-            fi
-        done > "$diff_file"
-    fi
-    
-    # 差分の数を返す
-    if [ -f "$diff_file" ] && [ -s "$diff_file" ]; then
-        wc -l < "$diff_file"
-    else
-        echo "0"
-    fi
-}
-
-# 差分拡張機能のみをインストールする関数
-# 推奨拡張機能のうち、まだインストールされていないもののみをインストールします
-install_extension_diff() {
-    local app_name="$1"
-    local recommended_file="$2"
-    local installed_file="$3"
-    
-    # 一時ファイルで差分を管理
-    local temp_diff="/tmp/${app_name}_extensions_diff.txt"
-    
-    # 現在インストールされている拡張機能を保存
-    save_installed_extensions "$app_name" "$installed_file"
-    
-    # 差分を計算
-    local diff_count=$(calculate_extensions_diff "$recommended_file" "$installed_file" "$temp_diff")
-    
-    if [ "$diff_count" -eq 0 ]; then
-        log_success "全ての推奨拡張機能が既にインストールされています"
-        rm -f "$temp_diff"
-        return 0
-    fi
-    
-    log_step "$diff_count 個の新しい拡張機能をインストールします"
-    
-    # 差分拡張機能の一覧を表示
-    log_info "インストール予定の拡張機能:"
-    cat "$temp_diff" | while read -r extension; do
-        echo "  - $extension"
-    done
-    
-    echo ""
-    
-    # 差分拡張機能をインストール
-    local installed_count=0
-    local failed_count=0
-    
-    while IFS= read -r extension; do
-        if [[ -n "$extension" ]]; then
-            log_info "インストール中: $extension"
-            
-            if "$app_name" --install-extension "$extension" --force &> /dev/null; then
-                log_success "インストール完了: $extension"
-                ((installed_count++))
-            else
-                log_warning "インストール失敗: $extension"
-                ((failed_count++))
-            fi
-        fi
-    done < "$temp_diff"
-    
-    # インストール後、再度インストール済みリストを更新
-    save_installed_extensions "$app_name" "$installed_file"
-    
-    # インストール結果のサマリーを表示
-    log_success "$app_name: $installed_count 個の拡張機能を新規インストールしました"
-    if [ "$failed_count" -gt 0 ]; then
-        log_warning "$app_name: $failed_count 個の拡張機能のインストールに失敗しました"
-    fi
-    
-    # 一時ファイルを削除
-    rm -f "$temp_diff"
-}
-
-# recommended-extensions.txt ファイルの確認と初期作成を行う関数
-# 推奨拡張機能リストが存在しない場合、サンプルファイルを作成します
-ensure_recommended_extensions_file() {
-    local app_name="$1"
-    local recommended_file="$2"
-    local installed_file="$3"
-    
-    # recommended-extensions.txt が既に存在する場合は何もしない
-    if [ -f "$recommended_file" ]; then
-        log_info "$app_name 用の推奨拡張機能リストが見つかりました: $recommended_file"
-        return 0
-    fi
-    
-    log_warning "$app_name 用の推奨拡張機能リスト (recommended-extensions.txt) が見つかりません"
-    
-    # ディレクトリを作成
-    mkdir -p "$(dirname "$recommended_file")"
-    
-    # アプリケーションが存在する場合、現在の拡張機能から推奨リストを生成するか確認
-    if command -v "$app_name" &> /dev/null; then
-        # 現在インストールされている拡張機能を確認
-        local temp_file="/tmp/${app_name}_current_extensions.txt"
-        "$app_name" --list-extensions > "$temp_file" 2>/dev/null || true
-        
-        if [ -s "$temp_file" ]; then
-            local extension_count=$(wc -l < "$temp_file")
-            log_info "現在 $extension_count 個の拡張機能がインストールされています"
-            
-            echo ""
-            echo "現在インストールされている拡張機能から推奨リストを生成しますか？"
-            echo -n "生成する場合は 'y' を入力してください (y/N): "
-            read -r response
-            
-            if [[ "$response" =~ ^[Yy]$ ]]; then
-                # 推奨拡張機能リストを生成
-                echo "# $app_name 推奨拡張機能リスト" > "$recommended_file"
-                echo "# このファイルに推奨する拡張機能IDを1行ずつ記載してください" >> "$recommended_file"
-                echo "# 例: ms-python.python" >> "$recommended_file"
-                echo "# 生成日: $(date)" >> "$recommended_file"
-                echo "" >> "$recommended_file"
-                cat "$temp_file" >> "$recommended_file"
-                
-                log_success "推奨拡張機能リストを生成しました: $recommended_file"
-                
-                # インストール済みリストも保存
-                cp "$temp_file" "$installed_file"
-                log_success "インストール済み拡張機能リストも保存しました: $installed_file"
-                
-                rm -f "$temp_file"
-                return 0
-            fi
-        fi
-        
-        rm -f "$temp_file"
-    fi
-    
-    # サンプルのrecommended-extensions.txtを作成
-    cat > "$recommended_file" << EOF
-# $app_name 推奨拡張機能リスト
-# このファイルに推奨する拡張機能IDを1行ずつ記載してください
-# 例: ms-python.python
-# 
-# 以下は一般的な拡張機能の例です。必要に応じて編集してください。
-
-# 基本的な開発ツール
-# editorconfig.editorconfig
-# streetsidesoftware.code-spell-checker
-
-# Git関連
-# eamodio.gitlens
-# donjayamanne.githistory
-
-# コード整形・リンター
-# esbenp.prettier-vscode
-# dbaeumer.vscode-eslint
-
-# テーマ・アイコン
-# pkief.material-icon-theme
-# zhuangtongfa.material-theme
-EOF
-
-    log_info "サンプルの推奨拡張機能リストを作成しました: $recommended_file"
-    log_info "必要な拡張機能IDを追加してから、再度このスクリプトを実行してください"
-    
-    return 1
 }
 
 # =============================================================================
-# アプリケーション別設定関数群（修正版）
+# メイン設定関数（WSL対応）
 # =============================================================================
 
-# VS Code設定の包括的セットアップ（修正版）
-# 設定ファイル、スニペット、拡張機能を一括で管理します
+# VS Code設定の包括的セットアップ（WSL対応版）
 setup_vscode() {
     local app_name="code"
+    local environment=$(detect_environment)
     
     # VS Codeのインストール確認
     if ! check_application_exists "$app_name"; then
+        if [[ "$environment" == "wsl" ]]; then
+            log_info ""
+            log_info "Windows側でVS Codeをインストールし、Remote - WSL拡張機能を追加してください"
+            log_info "インストール後、このスクリプトを再実行してください"
+        fi
         return 0
     fi
     
@@ -522,33 +436,35 @@ setup_vscode() {
             "VS Code $file"
     done
     
-    # スニペットの同期
-    sync_snippets_directory "$app_name" "$config_dir" "$dotfiles_dir"
-    
-    # 拡張機能の処理（新しい差分管理方式）
-    local recommended_file="$vscode_dotfiles/recommended-extensions.txt"
-    local installed_file="$vscode_dotfiles/installed-extensions.txt"
-    
-    # recommended-extensions.txt ファイルの確認と必要に応じて作成
-    ensure_recommended_extensions_file "$app_name" "$recommended_file" "$installed_file"
-    
-    # 推奨拡張機能の差分インストール
-    if [ -f "$recommended_file" ] && [ -s "$recommended_file" ]; then
-        install_extension_diff "$app_name" "$recommended_file" "$installed_file"
-    else
-        log_info "拡張機能のインストールをスキップしました"
+    # WSL環境での追加設定
+    if [[ "$environment" == "wsl" ]]; then
+        log_info "WSL環境用の追加設定を適用中..."
+        
+        # WSL用の推奨拡張機能を自動的にインストール
+        log_info "Remote - WSL拡張機能の確認..."
+        if code.exe --list-extensions 2>/dev/null | grep -q "ms-vscode-remote.remote-wsl"; then
+            log_success "Remote - WSL拡張機能は既にインストールされています"
+        else
+            log_info "Remote - WSL拡張機能をインストール中..."
+            code.exe --install-extension ms-vscode-remote.remote-wsl --force
+        fi
     fi
     
     log_success "=== VS Code 設定セットアップ完了 ==="
 }
 
-# Cursor設定の包括的セットアップ（修正版）
-# Cursorは VS Code と互換性がありながら独自の設定も持ちます
+# Cursor設定の包括的セットアップ（WSL対応版）
 setup_cursor() {
     local app_name="cursor"
+    local environment=$(detect_environment)
     
     # Cursorのインストール確認
     if ! check_application_exists "$app_name"; then
+        if [[ "$environment" == "wsl" ]]; then
+            log_info ""
+            log_info "Windows側でCursorをインストールしてください"
+            log_info "インストール後、このスクリプトを再実行してください"
+        fi
         return 0
     fi
     
@@ -589,276 +505,64 @@ setup_cursor() {
             "Cursor $file"
     done
     
-    # スニペットの同期
-    sync_snippets_directory "cursor" "$config_dir" "$dotfiles_dir"
-    
-    # 拡張機能の処理（新しい差分管理方式）
-    local recommended_file="$cursor_dotfiles/recommended-extensions.txt"
-    local installed_file="$cursor_dotfiles/installed-extensions.txt"
-    
-    # recommended-extensions.txt ファイルの確認と必要に応じて作成
-    ensure_recommended_extensions_file "$app_name" "$recommended_file" "$installed_file"
-    
-    # 推奨拡張機能の差分インストール
-    if [ -f "$recommended_file" ] && [ -s "$recommended_file" ]; then
-        install_extension_diff "$app_name" "$recommended_file" "$installed_file"
-    else
-        log_info "拡張機能のインストールをスキップしました"
-    fi
-    
     log_success "=== Cursor 設定セットアップ完了 ==="
 }
 
-# Git設定のセットアップ
-# 開発環境において重要なGit設定も統合的に管理します
-setup_git() {
-    log_step "=== Git 設定セットアップ開始 ==="
-    
-    local dotfiles_dir=$(get_dotfiles_path)
-    local git_dotfiles="$dotfiles_dir"  # Gitファイルは通常ルートに配置
-    
-    # Git設定ファイルの存在確認
-    if [ ! -f "$git_dotfiles/.gitconfig" ] && [ ! -f "$git_dotfiles/.gitignore_global" ]; then
-        log_warning "Git設定ファイルが見つかりません"
-        log_info "Gitの設定セットアップをスキップします"
-        return 0
-    fi
-    
-    # 既存のGit設定をバックアップ
-    local timestamp=$(generate_backup_timestamp)
-    if [ -f "$HOME/.gitconfig" ]; then
-        log_info "既存のGit設定をバックアップ中..."
-        cp "$HOME/.gitconfig" "$HOME/.gitconfig.backup.$timestamp"
-    fi
-    
-    # Git設定ファイルのシンボリックリンク作成
-    local git_files=(".gitconfig" ".gitignore_global")
-    for file in "${git_files[@]}"; do
-        if [ -f "$git_dotfiles/$file" ]; then
-            create_safe_symlink \
-                "$git_dotfiles/$file" \
-                "$HOME/$file" \
-                "Git $file"
-        fi
-    done
-    
-    log_success "=== Git 設定セットアップ完了 ==="
-}
-
 # =============================================================================
-# ユーティリティ関数群
+# 使用方法の表示（WSL対応版）
 # =============================================================================
 
-# 設定の差分確認（Git使用）
-show_configuration_diff() {
-    local dotfiles_dir=$(get_dotfiles_path)
-    
-    log_step "設定ファイルの変更差分を確認中..."
-    
-    cd "$dotfiles_dir"
-    
-    if [ -d ".git" ]; then
-        if ! git diff --quiet HEAD 2>/dev/null; then
-            log_info "dotfiles設定の変更点:"
-            git diff HEAD
-        else
-            log_info "dotfiles設定に変更はありません"
-        fi
-    else
-        log_info "Gitリポジトリではないため、差分を表示できません"
-    fi
-}
-
-# 現在の設定をdotfilesにバックアップ（修正版）
-backup_current_settings() {
-    local dotfiles_dir=$(get_dotfiles_path)
-    
-    log_step "=== 現在の設定をdotfilesにバックアップ中 ==="
-    
-    # VS Code設定のバックアップ
-    if check_application_exists "code"; then
-        local vscode_config=$(get_vscode_config_path)
-        local vscode_dotfiles="$dotfiles_dir/vscode"
-        
-        mkdir -p "$vscode_dotfiles/snippets"
-        
-        # 設定ファイルのコピー
-        cp "$vscode_config/settings.json" "$vscode_dotfiles/" 2>/dev/null || true
-        cp "$vscode_config/keybindings.json" "$vscode_dotfiles/" 2>/dev/null || true
-        
-        # インストール済み拡張機能リストを保存
-        save_installed_extensions "code" "$vscode_dotfiles/installed-extensions.txt"
-    fi
-    
-    # Cursor設定のバックアップ
-    if check_application_exists "cursor"; then
-        local cursor_config=$(get_cursor_config_path)
-        local cursor_dotfiles="$dotfiles_dir/cursor"
-        
-        mkdir -p "$cursor_dotfiles/snippets"
-        
-        # 設定ファイルのコピー
-        cp "$cursor_config/settings.json" "$cursor_dotfiles/" 2>/dev/null || true
-        cp "$cursor_config/keybindings.json" "$cursor_dotfiles/" 2>/dev/null || true
-        
-        # インストール済み拡張機能リストを保存
-        save_installed_extensions "cursor" "$cursor_dotfiles/installed-extensions.txt"
-    fi
-    
-    log_success "=== 現在の設定のバックアップ完了 ==="
-}
-
-# 拡張機能の管理状況を表示する関数
-show_extensions_status() {
-    local dotfiles_dir=$(get_dotfiles_path)
-    
-    log_step "=== 拡張機能の管理状況 ==="
-    
-    # VS Code の状況
-    if check_application_exists "code"; then
-        echo ""
-        log_info "VS Code 拡張機能の状況:"
-        
-        local vscode_dotfiles="$dotfiles_dir/vscode"
-        local recommended_file="$vscode_dotfiles/recommended-extensions.txt"
-        local installed_file="$vscode_dotfiles/installed-extensions.txt"
-        
-        if [ -f "$recommended_file" ]; then
-            local recommended_count=$(grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' | wc -l)
-            echo "  推奨拡張機能数: $recommended_count"
-        else
-            echo "  推奨拡張機能リスト: 未作成"
-        fi
-        
-        if [ -f "$installed_file" ]; then
-            local installed_count=$(wc -l < "$installed_file")
-            echo "  インストール済み拡張機能数: $installed_count"
-        else
-            echo "  インストール済みリスト: 未保存"
-        fi
-        
-        # 差分を表示
-        if [ -f "$recommended_file" ] && [ -f "$installed_file" ]; then
-            local temp_diff="/tmp/vscode_status_diff.txt"
-            local diff_count=$(calculate_extensions_diff "$recommended_file" "$installed_file" "$temp_diff")
-            echo "  未インストールの推奨拡張機能数: $diff_count"
-            
-            if [ "$diff_count" -gt 0 ] && [ "$diff_count" -le 10 ]; then
-                echo "  未インストールの拡張機能:"
-                cat "$temp_diff" | while read -r extension; do
-                    echo "    - $extension"
-                done
-            fi
-            rm -f "$temp_diff"
-        fi
-    fi
-    
-    # Cursor の状況
-    if check_application_exists "cursor"; then
-        echo ""
-        log_info "Cursor 拡張機能の状況:"
-        
-        local cursor_dotfiles="$dotfiles_dir/cursor"
-        
-        # VS Code設定を共有している場合の処理
-        if [ ! -d "$cursor_dotfiles" ]; then
-            cursor_dotfiles="$dotfiles_dir/vscode"
-        fi
-        
-        local recommended_file="$cursor_dotfiles/recommended-extensions.txt"
-        local installed_file="$cursor_dotfiles/installed-extensions.txt"
-        
-        if [ -f "$recommended_file" ]; then
-            local recommended_count=$(grep -v '^[[:space:]]*#' "$recommended_file" | grep -v '^[[:space:]]*$' | wc -l)
-            echo "  推奨拡張機能数: $recommended_count"
-        else
-            echo "  推奨拡張機能リスト: 未作成"
-        fi
-        
-        if [ -f "$installed_file" ]; then
-            local installed_count=$(wc -l < "$installed_file")
-            echo "  インストール済み拡張機能数: $installed_count"
-        else
-            echo "  インストール済みリスト: 未保存"
-        fi
-        
-        # 差分を表示
-        if [ -f "$recommended_file" ] && [ -f "$installed_file" ]; then
-            local temp_diff="/tmp/cursor_status_diff.txt"
-            local diff_count=$(calculate_extensions_diff "$recommended_file" "$installed_file" "$temp_diff")
-            echo "  未インストールの推奨拡張機能数: $diff_count"
-            
-            if [ "$diff_count" -gt 0 ] && [ "$diff_count" -le 10 ]; then
-                echo "  未インストールの拡張機能:"
-                cat "$temp_diff" | while read -r extension; do
-                    echo "    - $extension"
-                done
-            fi
-            rm -f "$temp_diff"
-        fi
-    fi
-    
-    echo ""
-    log_success "=== 拡張機能の管理状況表示完了 ==="
-}
-
-# 使用方法の表示（更新版）
 show_usage() {
     echo "使用方法: $0 [オプション]"
     echo ""
     echo "このスクリプトは VS Code と Cursor の設定を統合的に管理します"
+    echo "WSL環境にも対応しています"
     echo ""
     echo "オプション:"
-    echo "  --backup        現在の設定をdotfilesにバックアップ"
-    echo "  --diff          設定の変更差分を表示"
-    echo "  --status        拡張機能の管理状況を表示"
+    echo "  --setup-wsl     WSL環境用のコマンドセットアップ"
     echo "  --vscode-only   VS Code設定のみを適用"
     echo "  --cursor-only   Cursor設定のみを適用"
     echo "  --help          このヘルプを表示"
     echo ""
-    echo "拡張機能の管理について:"
-    echo "  - 推奨拡張機能は recommended-extensions.txt で管理"
-    echo "  - インストール済みは installed-extensions.txt に保存"
-    echo "  - 差分のみをインストールするので効率的"
+    echo "WSL環境での使用:"
+    echo "  1. Windows側でVS Code/Cursorをインストール"
+    echo "  2. VS CodeでRemote - WSL拡張機能をインストール"
+    echo "  3. WSL内でこのスクリプトを実行"
     echo ""
     echo "例:"
     echo "  $0                    # 全体セットアップを実行"
-    echo "  $0 --backup           # 現在の設定をバックアップ"
-    echo "  $0 --status           # 拡張機能の状況確認"
+    echo "  $0 --setup-wsl        # WSLコマンドのセットアップ"
     echo "  $0 --vscode-only      # VS Code設定のみを適用"
-    echo "  $0 --diff             # 設定の変更差分を表示"
 }
 
 # =============================================================================
 # メイン実行関数
 # =============================================================================
 
-# メイン処理の実行
-# コマンドライン引数に応じて適切な処理を実行します
 main() {
     # スクリプト開始のアナウンス
     echo "========================================================"
     echo "  VS Code & Cursor 統合dotfiles管理スクリプト"
-    echo "  （拡張機能差分管理対応版）"
+    echo "  （WSL対応版）"
     echo "========================================================"
     
+    local environment=$(detect_environment)
     local dotfiles_dir=$(get_dotfiles_path)
+    
+    log_info "検出された環境: $environment"
     log_info "dotfilesディレクトリ: $dotfiles_dir"
-    log_info "検出OS: $(detect_os)"
+    
+    # WSL環境の場合、追加情報を表示
+    if [[ "$environment" == "wsl" ]]; then
+        get_wsl_info
+    fi
+    
     echo ""
     
     # コマンドライン引数の処理
     case "${1:-}" in
-        --backup)
-            backup_current_settings
-            return 0
-            ;;
-        --diff)
-            show_configuration_diff
-            return 0
-            ;;
-        --status)
-            show_extensions_status
+        --setup-wsl)
+            setup_wsl_commands
             return 0
             ;;
         --vscode-only)
@@ -883,6 +587,11 @@ main() {
             ;;
     esac
     
+    # WSL環境での初期セットアップ
+    if [[ "$environment" == "wsl" ]]; then
+        setup_wsl_commands
+    fi
+    
     # 統合セットアップの実行
     log_step "統合設定セットアップを開始します..."
     
@@ -890,8 +599,6 @@ main() {
     setup_vscode
     echo ""
     setup_cursor
-    echo ""
-    setup_git
     
     # セットアップ完了のアナウンス
     echo ""
@@ -899,15 +606,18 @@ main() {
     log_success "統合dotfiles設定が完了しました！"
     echo "========================================================"
     
-    # 再起動の推奨
-    log_info "変更を適用するために、以下のアプリケーションを再起動してください:"
-    check_application_exists "code" && echo "  - VS Code"
-    check_application_exists "cursor" && echo "  - Cursor"
-    
-    echo ""
-    log_info "拡張機能の状況確認: $0 --status"
-    log_info "設定の詳細確認: $0 --diff"
-    log_info "設定のバックアップ: $0 --backup"
+    # 環境別の再起動推奨
+    if [[ "$environment" == "wsl" ]]; then
+        log_info ""
+        log_info "WSL環境での次のステップ:"
+        log_info "1. Windows側でVS Code/Cursorを再起動"
+        log_info "2. VS Code/Cursorから 'Remote-WSL: New Window' コマンドを実行"
+        log_info "3. WSL環境内でプロジェクトを開く"
+    else
+        log_info "変更を適用するために、以下のアプリケーションを再起動してください:"
+        check_application_exists "code" && echo "  - VS Code"
+        check_application_exists "cursor" && echo "  - Cursor"
+    fi
 }
 
 # =============================================================================
@@ -915,11 +625,9 @@ main() {
 # =============================================================================
 
 # エラーハンドリングの設定
-# スクリプト実行中にエラーが発生した場合の処理を定義
 trap 'log_error "スクリプト実行中にエラーが発生しました (行番号: $LINENO)"; exit 1' ERR
 
 # メイン関数の実行
-# このスクリプトが直接実行された場合のみmain関数を呼び出します
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi

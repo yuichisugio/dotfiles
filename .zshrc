@@ -1,4 +1,39 @@
 # ===========================================
+# Zsh WSL Compatible
+# ===========================================
+
+# 環境検出
+detect_environment() {
+    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+        echo "wsl"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
+ENVIRONMENT=$(detect_environment)
+
+# WSL固有の設定
+if [[ "$ENVIRONMENT" == "wsl" ]]; then
+    # WSLでWindows側のパスを追加（VS Code、Cursorなどのため）
+    export PATH="$PATH:/mnt/c/Windows/System32"
+    export PATH="$PATH:/mnt/c/Windows"
+    
+    # WSL2の場合のX11フォワーディング設定（GUI アプリケーション用）
+    if [[ -n "$WSL_DISTRO_NAME" ]]; then
+        export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
+        export LIBGL_ALWAYS_INDIRECT=1
+    fi
+    
+    # Windowsのホームディレクトリへのエイリアス
+    export WINHOME="/mnt/c/Users/$(whoami)"
+fi
+
+# ===========================================
 # Zsh Core Configuration
 # ===========================================
 setopt AUTO_CD              # ディレクトリ名だけでcdする
@@ -41,19 +76,41 @@ zstyle ':completion:*:warnings' format 'No matches: %d' # マッチしない場�
 # ===========================================
 # Colors and Syntax Highlighting
 # ===========================================
-
 # 色の有効化
 autoload -U colors && colors
 
 # プロンプトの色分け設定
 export PS1="%{$fg[cyan]%}%1~%{$reset_color%} %{$fg[green]%}%#%{$reset_color%} "
 
-# zsh-syntax-highlightingのインストールと設定
-# Homebrewでインストール: brew install zsh-syntax-highlighting
-if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# 環境別のシンタックスハイライト設定
+case "$ENVIRONMENT" in
+    "macos")
+        # Homebrewでインストール: brew install zsh-syntax-highlighting
+        if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+            source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+        fi
+        
+        # zsh-autosuggestions (macOS)
+        if [[ -f $(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+            source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+        fi
+        ;;
     
-    # シンタックスハイライトの色設定
+    "wsl"|"linux")
+        # APTでインストール: sudo apt install zsh-syntax-highlighting
+        if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+            source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+        fi
+        
+        # zsh-autosuggestions (Linux/WSL)
+        if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+            source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+        fi
+        ;;
+esac
+
+# シンタックスハイライトの共通色設定
+if [[ -n "$ZSH_HIGHLIGHT_STYLES" ]]; then
     ZSH_HIGHLIGHT_STYLES[command]='fg=green,bold'           # コマンド名を緑色の太字
     ZSH_HIGHLIGHT_STYLES[alias]='fg=magenta,bold'           # エイリアスを紫色の太字
     ZSH_HIGHLIGHT_STYLES[builtin]='fg=yellow,bold'          # 組み込みコマンドを黄色の太字
@@ -64,11 +121,14 @@ if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
     ZSH_HIGHLIGHT_STYLES[double-hyphen-option]='fg=cyan'    # 長いオプション(--version)をシアン色
 fi
 
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-
-# lsコマンドの色分け（macOS用）
+# lsコマンドの色分け
 export CLICOLOR=1
-export LSCOLORS=ExFxCxDxBxegedabagacad
+if [[ "$ENVIRONMENT" == "macos" ]]; then
+    export LSCOLORS=ExFxCxDxBxegedabagacad
+else
+    # Linux/WSL用のLS_COLORS設定
+    export LS_COLORS='di=1;34:ln=1;35:so=1;32:pi=1;33:ex=1;31:bd=34;46:cd=34;43:su=0;41:sg=0;46:tw=0;42:ow=0;43:'
+fi
 
 # grepの色分け
 export GREP_OPTIONS='--color=auto'
@@ -78,26 +138,60 @@ export GREP_COLOR='1;32'
 # ===========================================
 # PATH Configuration
 # ===========================================
+# 環境別のPATH設定
+case "$ENVIRONMENT" in
+    "macos")
+        # Homebrewのパス設定
+        export PATH="/opt/homebrew/bin:$PATH"
+        ;;
+    
+    "wsl")
+        # WSL環境でのPATH設定
+        # Linux側のローカルbinを優先
+        export PATH="$HOME/.local/bin:$PATH"
+        export PATH="/usr/local/bin:$PATH"
+        
+        # Windows側のVS Code/Cursorへのパス（必要に応じて）
+        if [[ -d "/mnt/c/Program Files/Microsoft VS Code/bin" ]]; then
+            export PATH="$PATH:/mnt/c/Program Files/Microsoft VS Code/bin"
+        fi
+        
+        # Windows側のユーザーローカルのVS Code
+        if [[ -d "/mnt/c/Users/$(whoami)/AppData/Local/Programs/Microsoft VS Code/bin" ]]; then
+            export PATH="$PATH:/mnt/c/Users/$(whoami)/AppData/Local/Programs/Microsoft VS Code/bin"
+        fi
+        ;;
+    
+    "linux")
+        # 通常のLinux環境
+        export PATH="$HOME/.local/bin:$PATH"
+        export PATH="/usr/local/bin:$PATH"
+        ;;
+esac
 
-# Homebrewのパス設定
-export PATH="/opt/homebrew/bin:$PATH"
-
-# ターミナルに表示する%の部分を、カレントディレクトリPATHのみ表示して、usernameなどの表示は無しにする
-export PS1="%~ $ "
-
-export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" && export PATH="/usr/local/node20-arm64/bin:$PATH" && export PNPM_HOME="/Users/yuichi.sugio/Library/pnpm" && export PATH="$PNPM_HOME:$PATH"
+# ターミナルプロンプトのカスタマイズ（環境を表示）
+if [[ "$ENVIRONMENT" == "wsl" ]]; then
+    export PS1="[WSL] %~ $ "
+else
+    export PS1="%~ $ "
+fi
 
 # ===========================================
 # Development Tools Configuration
 # ===========================================
-
-# Node.js (nvm) の設定
+# Node.js (nvm) の設定 - 全環境共通
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                    # nvmスクリプトの読み込み
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # nvm補完機能の読み込み
 
 # pnpm の設定
-export PNPM_HOME="/Users/sugioyuuichi/Library/pnpm"
+if [[ "$ENVIRONMENT" == "macos" ]]; then
+    export PNPM_HOME="/Users/$(whoami)/Library/pnpm"
+else
+    # Linux/WSL環境
+    export PNPM_HOME="$HOME/.local/share/pnpm"
+fi
+
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;                                             # 既にパスに含まれている場合は何もしない
   *) export PATH="$PNPM_HOME:$PATH" ;;                             # パスに追加
@@ -107,21 +201,67 @@ esac
 # Python/Conda Configuration
 # ===========================================
 
-# >>> conda initialize >>>
-# Anacondaの初期化設定（conda initによって自動生成）
-__conda_setup="$('/Users/sugioyuuichi/opt/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"                                          # conda hookが成功した場合の処理
-else
-    # フォールバック処理
-    if [ -f "/Users/sugioyuuichi/opt/anaconda3/etc/profile.d/conda.sh" ]; then
-        . "/Users/sugioyuuichi/opt/anaconda3/etc/profile.d/conda.sh"  # conda.shを直接読み込み
+# 環境別のConda設定
+case "$ENVIRONMENT" in
+    "macos")
+        CONDA_PATH="$HOME/opt/anaconda3"
+        ;;
+    "wsl"|"linux")
+        CONDA_PATH="$HOME/anaconda3"
+        # 代替パス
+        [ ! -d "$CONDA_PATH" ] && CONDA_PATH="$HOME/miniconda3"
+        [ ! -d "$CONDA_PATH" ] && CONDA_PATH="/opt/anaconda3"
+        ;;
+esac
+
+# Condaの初期化（パスが存在する場合のみ）
+if [[ -d "$CONDA_PATH" ]]; then
+    __conda_setup="$('$CONDA_PATH/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+    if [ $? -eq 0 ]; then
+        eval "$__conda_setup"
     else
-        export PATH="/Users/sugioyuuichi/opt/anaconda3/bin:$PATH"     # パスに直接追加
+        if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
+            . "$CONDA_PATH/etc/profile.d/conda.sh"
+        else
+            export PATH="$CONDA_PATH/bin:$PATH"
+        fi
     fi
+    unset __conda_setup
 fi
-unset __conda_setup                                                # 一時変数をクリーンアップ
-# <<< conda initialize <<<
+
+# ===========================================
+# WSL固有のユーティリティ関数
+# ===========================================
+
+if [[ "$ENVIRONMENT" == "wsl" ]]; then
+    # Windows側のパスをWSLパスに変換
+    winpath() {
+        echo "$1" | sed -e 's|\\|/|g' -e 's|^\([A-Za-z]\):|/mnt/\L\1|'
+    }
+    
+    # WSLパスをWindows側のパスに変換
+    wslpath() {
+        echo "$1" | sed -e 's|^/mnt/\([a-z]\)/|\U\1:\\|' -e 's|/|\\|g'
+    }
+    
+    # Windows側のエクスプローラーで現在のディレクトリを開く
+    explorer() {
+        if [[ $# -eq 0 ]]; then
+            /mnt/c/Windows/explorer.exe "$(wslpath $(pwd))"
+        else
+            /mnt/c/Windows/explorer.exe "$(wslpath $1)"
+        fi
+    }
+    
+    # Windows側のVS Codeで開く
+    code() {
+        if command -v code.exe &> /dev/null; then
+            code.exe "$@"
+        else
+            echo "VS Code is not installed or not in PATH"
+        fi
+    }
+fi
 
 # ===========================================
 # Aliases and Functions
@@ -132,6 +272,12 @@ if [[ -f ~/.zsh/aliases.zsh ]]; then
     source ~/.zsh/aliases.zsh
 else
     echo "Warning: ~/.zsh/aliases.zsh not found"
+fi
+
+# WSL固有のエイリアス
+if [[ "$ENVIRONMENT" == "wsl" ]]; then
+    alias clip='/mnt/c/Windows/System32/clip.exe'  # クリップボードへのコピー
+    alias winhome='cd $WINHOME'                    # Windowsホームディレクトリへ移動
 fi
 
 # ===========================================
@@ -148,20 +294,21 @@ if [[ -f ~/.zsh/projects.zsh ]]; then
     source ~/.zsh/projects.zsh
 fi
 
-
-# ===========================================
-# Plugin
-# ===========================================
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-
 # ===========================================
 # SSH
 # ===========================================
 
-# SSH Agent自動起動設定
+# SSH Agent自動起動設定（WSLではWindows側のSSH Agentと連携も可能）
 if [ -z "$SSH_AUTH_SOCK" ]; then
-  eval $(ssh-agent -s)
-  ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+    eval $(ssh-agent -s)
+    
+    # SSH鍵の追加（環境別）
+    if [[ "$ENVIRONMENT" == "macos" ]]; then
+        ssh-add --apple-use-keychain ~/.ssh/id_ed25519 2>/dev/null || true
+    else
+        ssh-add ~/.ssh/id_ed25519 2>/dev/null || true
+    fi
 fi
-source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# npmグローバルパッケージのパス
 export PATH=~/.npm-global/bin:$PATH

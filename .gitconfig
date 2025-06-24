@@ -8,7 +8,7 @@
 	email = yuichisugio@users.noreply.github.com
 [core]
         editor = code --wait
-        filemode = true
+	filemode = false
         hooksPath = ~/.git_template/hooks
 	quotepath = false
 	autocrlf = input
