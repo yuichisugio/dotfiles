@@ -94,6 +94,9 @@ case "$ENVIRONMENT" in
         if [[ -f $(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
             source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
         fi
+        
+        # zsh-autosuggestions色設定（白い背景でも見やすい色に）
+        export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
         ;;
     
     "wsl"|"linux")
@@ -112,6 +115,9 @@ case "$ENVIRONMENT" in
         elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
             source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
         fi
+        
+        # zsh-autosuggestions色設定（白い背景でも見やすい色に）
+        export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
         ;;
 esac
 
