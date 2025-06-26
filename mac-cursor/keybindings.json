@@ -61,5 +61,4 @@
     "key": "cmd+shift+p",
     "command": "workbench.action.terminal.focus"
   }
-]%        
-
+]

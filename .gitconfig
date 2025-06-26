@@ -7,7 +7,7 @@
 	name = yuichisugio
 	email = yuichisugio@users.noreply.github.com
 [core]
-        editor = code --wait
+	editor = nano
 	filemode = false
         hooksPath = ~/.git_template/hooks
 	quotepath = false
@@ -15,7 +15,7 @@
 	whitespace = trailing-space,space-before-tab
 	precomposeunicode = true
 	pager = delta
-	excludesfile = /Users/<username>/.gitignore_global
+	excludesfile = ~/.gitignore_global
 [color]
 	ui = true
 	[color "branch"]

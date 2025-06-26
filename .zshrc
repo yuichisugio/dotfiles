@@ -298,17 +298,20 @@ fi
 # SSH
 # ===========================================
 
-# SSH Agent自動起動設定（WSLではWindows側のSSH Agentと連携も可能）
-if [ -z "$SSH_AUTH_SOCK" ]; then
-    eval $(ssh-agent -s)
-    
-    # SSH鍵の追加（環境別）
-    if [[ "$ENVIRONMENT" == "macos" ]]; then
-        ssh-add --apple-use-keychain ~/.ssh/id_ed25519 2>/dev/null || true
-    else
-        ssh-add ~/.ssh/id_ed25519 2>/dev/null || true
-    fi
-fi
+# SSH Agent自動起動設定はkeychainに任せる
 
 # npmグローバルパッケージのパス
 export PATH=~/.npm-global/bin:$PATH
+
+# Cursor 
+export PATH="$PATH:/mnt/c/Users/<USER_NAME>/AppData/Local/Programs/cursor/resources/app/bin"
+
+# Cursor 
+export PATH="$PATH:/mnt/c/Users/sugio/AppData/Local/Programs/cursor/resources/app/bin"
+
+# SSH keychainの設定（passphraseプロンプトを抑制）
+eval "$(keychain --eval --quiet --agents ssh id_ed25519 2>/dev/null)"
+
+# Git aliases for commitizen
+alias gc="pnpm commit"
+alias gpushom="git push origin main"

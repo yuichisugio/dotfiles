@@ -13,7 +13,14 @@
       "Bash(node:*)",
       "Bash(npx:*)",
       "Bash(timeout:*)",
-      "Bash(sudo npm install:*)"
+      "Bash(sudo npm install:*)",
+      "Bash(SSH_ASKPASS= ssh-add ~/.ssh/id_ed25519)",
+      "Bash(expect:*)",
+      "Bash(keychain:*)",
+      "Bash(pkill:*)",
+      "Bash(rm:*)",
+      "Bash(zsh:*)",
+      "Bash(cursor:*)"
     ],
     "deny": []
   }
