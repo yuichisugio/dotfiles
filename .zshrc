@@ -100,11 +100,17 @@ case "$ENVIRONMENT" in
         # APTでインストール: sudo apt install zsh-syntax-highlighting
         if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
             source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+        # 手動インストール版
+        elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+            source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
         fi
         
         # zsh-autosuggestions (Linux/WSL)
         if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
             source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+        # 手動インストール版
+        elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+            source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
         fi
         ;;
 esac

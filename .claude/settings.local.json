@@ -20,7 +20,9 @@
       "Bash(pkill:*)",
       "Bash(rm:*)",
       "Bash(zsh:*)",
-      "Bash(cursor:*)"
+      "Bash(cursor:*)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)"
     ],
     "deny": []
   }

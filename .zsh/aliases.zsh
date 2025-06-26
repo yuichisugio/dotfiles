@@ -101,3 +101,82 @@ psg() {
 port() {
     lsof -i :"$1"
 }
+
+# ===========================================
+# WSL Specific Aliases
+# ===========================================
+
+# WSL環境の検出
+if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+    # Windows側のコマンドをLinux風に使用
+    alias cmd='/mnt/c/Windows/System32/cmd.exe'
+    alias powershell='/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
+    alias pwsh='/mnt/c/Program\ Files/PowerShell/7/pwsh.exe'
+    
+    # Windows側のアプリケーション
+    alias notepad='/mnt/c/Windows/notepad.exe'
+    alias calc='/mnt/c/Windows/System32/calc.exe'
+    alias clip='/mnt/c/Windows/System32/clip.exe'
+    
+    # Windows側のディレクトリへのショートカット
+    alias cdwin='cd /mnt/c/Users/$USER'
+    alias cddesk='cd /mnt/c/Users/$USER/Desktop'
+    alias cddoc='cd /mnt/c/Users/$USER/Documents'  
+    alias cddown='cd /mnt/c/Users/$USER/Downloads'
+    
+    # VS Code / Cursor
+    alias code='code.exe'
+    alias cursor='cursor.exe'
+fi
+
+# ===========================================
+# Docker Aliases
+# ===========================================
+alias d='docker'
+alias dc='docker-compose'
+alias dcu='docker-compose up'
+alias dcd='docker-compose down'
+alias dcb='docker-compose build'
+alias dcl='docker-compose logs'
+alias dps='docker ps'
+alias dpsa='docker ps -a'
+alias di='docker images'
+alias drm='docker rm'
+alias drmi='docker rmi'
+
+# ===========================================
+# Additional Utility Functions
+# ===========================================
+
+# IPアドレス確認
+myip() {
+    curl -s https://ipinfo.io/ip
+}
+
+# 天気予報（東京）
+weather() {
+    if [ $# -eq 0 ]; then
+        curl -s "wttr.in/Tokyo"
+    else
+        curl -s "wttr.in/$1"
+    fi
+}
+
+# ファイル検索
+ff() {
+    find . -name "*$1*" -type f
+}
+
+# ディレクトリ検索
+fd() {
+    find . -name "*$1*" -type d
+}
+
+# 履歴検索
+hist() {
+    if [ $# -eq 0 ]; then
+        history | tail -20
+    else
+        history | grep "$1"
+    fi
+}
