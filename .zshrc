@@ -2,25 +2,20 @@
 # Zsh WSL Compatible
 # ===========================================
 
-# Agent Mode detection (最初に実行)
-if [[ "$AGENT_MODE" == "true" ]]; then
+# Cursor Agent Mode detection (最初に実行)
+if [[ "$TERM_PROGRAM" == "vscode" ]] || [[ "$TERM_PROGRAM" == "cursor" ]] || [[ "$AGENT_MODE" == "true" ]]; then
+  # Disable complex prompt features for Cursor/VS Code and AI agents
+  ZSH_THEME=""        # Disable Powerlevel10k
+  PROMPT='%n@%m:%~%# '  # 最小限のプロンプト
   POWERLEVEL9K_INSTANT_PROMPT=off
-  # Disable complex prompt features for AI agents
-  POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs)
-  POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=()
   # Ensure non-interactive mode
   export DEBIAN_FRONTEND=noninteractive
   export NONINTERACTIVE=1
-fi
-
-# Enable Powerlevel10k instant prompt only when not in agent mode
-if [[ "$AGENT_MODE" != "true" ]] && [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-# Set Oh My Zsh theme conditionally - disable for agents only
-if [[ "$AGENT_MODE" == "true" ]]; then
-  ZSH_THEME=""  # Disable Powerlevel10k for agents
+else
+  # Enable Powerlevel10k instant prompt only when not in agent mode
+  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  fi
 fi
 
 # 環境検出
@@ -104,7 +99,7 @@ autoload -U colors && colors
 export PS1="%{$fg[cyan]%}%1~%{$reset_color%} %{$fg[green]%}%#%{$reset_color%} "
 
 # 環境別のシンタックスハイライト設定（Agent Modeでない場合のみ）
-if [[ "$AGENT_MODE" != "true" ]]; then
+if [[ "$TERM_PROGRAM" != "vscode" ]] && [[ "$TERM_PROGRAM" != "cursor" ]] && [[ "$AGENT_MODE" != "true" ]]; then
     case "$ENVIRONMENT" in
         "macos")
             # Homebrewでインストール: brew install zsh-syntax-highlighting
