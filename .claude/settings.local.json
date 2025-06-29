@@ -22,7 +22,10 @@
       "Bash(zsh:*)",
       "Bash(cursor:*)",
       "Bash(sudo apt:*)",
-      "Bash(sudo apt install:*)"
+      "Bash(sudo apt install:*)",
+      "WebFetch(domain:forum.cursor.com)",
+      "Bash(exec zsh)",
+      "Bash(/home/sugio/test-agent-mode.sh:*)"
     ],
     "deny": []
   }

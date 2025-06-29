@@ -2,6 +2,27 @@
 # Zsh WSL Compatible
 # ===========================================
 
+# Agent Mode detection (最初に実行)
+if [[ "$AGENT_MODE" == "true" ]]; then
+  POWERLEVEL9K_INSTANT_PROMPT=off
+  # Disable complex prompt features for AI agents
+  POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs)
+  POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=()
+  # Ensure non-interactive mode
+  export DEBIAN_FRONTEND=noninteractive
+  export NONINTERACTIVE=1
+fi
+
+# Enable Powerlevel10k instant prompt only when not in agent mode
+if [[ "$AGENT_MODE" != "true" ]] && [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# Set Oh My Zsh theme conditionally - disable for agents only
+if [[ "$AGENT_MODE" == "true" ]]; then
+  ZSH_THEME=""  # Disable Powerlevel10k for agents
+fi
+
 # 環境検出
 detect_environment() {
     if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
@@ -60,6 +81,7 @@ zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}   # 補完候補に色を�
 # ===========================================
 # Completion Configuration
 # ===========================================
+# 色の有効化
 
 # 補完機能の初期化
 autoload -U compinit
@@ -76,50 +98,51 @@ zstyle ':completion:*:warnings' format 'No matches: %d' # マッチしない場�
 # ===========================================
 # Colors and Syntax Highlighting
 # ===========================================
-# 色の有効化
 autoload -U colors && colors
 
 # プロンプトの色分け設定
 export PS1="%{$fg[cyan]%}%1~%{$reset_color%} %{$fg[green]%}%#%{$reset_color%} "
 
-# 環境別のシンタックスハイライト設定
-case "$ENVIRONMENT" in
-    "macos")
-        # Homebrewでインストール: brew install zsh-syntax-highlighting
-        if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-            source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-        fi
+# 環境別のシンタックスハイライト設定（Agent Modeでない場合のみ）
+if [[ "$AGENT_MODE" != "true" ]]; then
+    case "$ENVIRONMENT" in
+        "macos")
+            # Homebrewでインストール: brew install zsh-syntax-highlighting
+            if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+                source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+            fi
+            
+            # zsh-autosuggestions (macOS)
+            if [[ -f $(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+                source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+            fi
+            
+            # zsh-autosuggestions色設定（白い背景でも見やすい色に）
+            export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
+            ;;
         
-        # zsh-autosuggestions (macOS)
-        if [[ -f $(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-            source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-        fi
-        
-        # zsh-autosuggestions色設定（白い背景でも見やすい色に）
-        export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
-        ;;
-    
-    "wsl"|"linux")
-        # APTでインストール: sudo apt install zsh-syntax-highlighting
-        if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-            source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-        # 手動インストール版
-        elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-            source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-        fi
-        
-        # zsh-autosuggestions (Linux/WSL)
-        if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-            source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-        # 手動インストール版
-        elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-            source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-        fi
-        
-        # zsh-autosuggestions色設定（白い背景でも見やすい色に）
-        export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
-        ;;
-esac
+        "wsl"|"linux")
+            # APTでインストール: sudo apt install zsh-syntax-highlighting
+            if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+                source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+            # 手動インストール版
+            elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+                source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+            fi
+            
+            # zsh-autosuggestions (Linux/WSL)
+            if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+                source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+            # 手動インストール版
+            elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+                source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+            fi
+            
+            # zsh-autosuggestions色設定（白い背景でも見やすい色に）
+            export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
+            ;;
+    esac
+fi
 
 # シンタックスハイライトの共通色設定
 if [[ -n "$ZSH_HIGHLIGHT_STYLES" ]]; then
@@ -181,13 +204,6 @@ case "$ENVIRONMENT" in
         ;;
 esac
 
-# ターミナルプロンプトのカスタマイズ（環境を表示）
-if [[ "$ENVIRONMENT" == "wsl" ]]; then
-    export PS1="[WSL] %~ $ "
-else
-    export PS1="%~ $ "
-fi
-
 # ===========================================
 # Development Tools Configuration
 # ===========================================
@@ -208,38 +224,6 @@ case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;                                             # 既にパスに含まれている場合は何もしない
   *) export PATH="$PNPM_HOME:$PATH" ;;                             # パスに追加
 esac
-
-# ===========================================
-# Python/Conda Configuration
-# ===========================================
-
-# 環境別のConda設定
-case "$ENVIRONMENT" in
-    "macos")
-        CONDA_PATH="$HOME/opt/anaconda3"
-        ;;
-    "wsl"|"linux")
-        CONDA_PATH="$HOME/anaconda3"
-        # 代替パス
-        [ ! -d "$CONDA_PATH" ] && CONDA_PATH="$HOME/miniconda3"
-        [ ! -d "$CONDA_PATH" ] && CONDA_PATH="/opt/anaconda3"
-        ;;
-esac
-
-# Condaの初期化（パスが存在する場合のみ）
-if [[ -d "$CONDA_PATH" ]]; then
-    __conda_setup="$('$CONDA_PATH/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-    if [ $? -eq 0 ]; then
-        eval "$__conda_setup"
-    else
-        if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
-            . "$CONDA_PATH/etc/profile.d/conda.sh"
-        else
-            export PATH="$CONDA_PATH/bin:$PATH"
-        fi
-    fi
-    unset __conda_setup
-fi
 
 # ===========================================
 # WSL固有のユーティリティ関数
@@ -266,7 +250,7 @@ if [[ "$ENVIRONMENT" == "wsl" ]]; then
     }
     
     # Windows側のVS Codeで開く
-    code() {
+    vscode() {
         if command -v code.exe &> /dev/null; then
             code.exe "$@"
         else
@@ -323,7 +307,3 @@ export PATH="$PATH:/mnt/c/Users/sugio/AppData/Local/Programs/cursor/resources/ap
 
 # SSH keychainの設定（passphraseプロンプトを抑制）
 eval "$(keychain --eval --quiet --agents ssh id_ed25519 2>/dev/null)"
-
-# Git aliases for commitizen
-alias gc="pnpm commit"
-alias gpushom="git push origin main"
