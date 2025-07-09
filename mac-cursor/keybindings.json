@@ -60,5 +60,27 @@
 	{
     "key": "cmd+shift+p",
     "command": "workbench.action.terminal.focus"
-  }
+	},
+	{
+		"key": "cmd+[IntlRo]",
+		"command": "workbench.action.terminal.split",
+		"when": "terminalFocus && terminalProcessSupported || terminalFocus && terminalWebExtensionContributedProfile"
+	},
+	{
+		"key": "ctrl+alt+cmd+[IntlYen]",
+		"command": "-workbench.action.terminal.split",
+		"when": "terminalFocus && terminalProcessSupported || terminalFocus && terminalWebExtensionContributedProfile"
+	},
+	{
+		"key": "cmd+[IntlRo]",
+		"command": "-workbench.action.zoomOut"
+	},
+	{
+		"key": "cmd+[IntlRo]",
+		"command": "workbench.action.splitEditor"
+	},
+	{
+		"key": "ctrl+alt+cmd+[IntlYen]",
+		"command": "-workbench.action.splitEditor"
+	}
 ]
