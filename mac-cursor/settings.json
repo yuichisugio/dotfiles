@@ -78,5 +78,9 @@
     "explorer.fileNesting.enabled": true,
     "terminal.integrated.defaultProfile.linux": "zsh",
     "terminal.integrated.scrollback": 20000,
-    "explorer.confirmDelete": false
+    "explorer.confirmDelete": false,
+    "application.shellEnvironmentResolutionTimeout": 30,
+    "explorer.confirmDragAndDrop": false,
+    "workbench.editor.enablePreview": false,
+    "cursor.windowSwitcher.sidebarHoverCollapsed": true
 }
