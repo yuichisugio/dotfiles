@@ -2,9 +2,11 @@
 # Zsh WSL Compatible
 # ===========================================
 
+fpath=(path/to/zsh-completions/src $fpath)
+
 # Cursor Agent Mode detection (最初に実行)
-if [[ "$TERM_PROGRAM" == "vscode" ]] || [[ "$TERM_PROGRAM" == "cursor" ]] || [[ "$AGENT_MODE" == "true" ]]; then
-  # Disable complex prompt features for Cursor/VS Code and AI agents
+if [[ "$AGENT_MODE" == "true" ]] || [[ "$TERM_PROGRAM" == "vscode" && -z "$CURSOR_ENABLED" ]]; then
+  # Disable complex prompt features for AI agents and VS Code (but not Cursor)
   ZSH_THEME=""        # Disable Powerlevel10k
   PROMPT='%n@%m:%~%# '  # 最小限のプロンプト
   POWERLEVEL9K_INSTANT_PROMPT=off
@@ -99,7 +101,8 @@ autoload -U colors && colors
 export PS1="%{$fg[cyan]%}%1~%{$reset_color%} %{$fg[green]%}%#%{$reset_color%} "
 
 # 環境別のシンタックスハイライト設定（Agent Modeでない場合のみ）
-if [[ "$TERM_PROGRAM" != "vscode" ]] && [[ "$TERM_PROGRAM" != "cursor" ]] && [[ "$AGENT_MODE" != "true" ]]; then
+# Cursor環境でも有効にするため、より厳密な条件に変更
+if [[ "$AGENT_MODE" != "true" ]] && [[ ! ("$TERM_PROGRAM" == "vscode" && -z "$CURSOR_ENABLED") ]]; then
     case "$ENVIRONMENT" in
         "macos")
             # Homebrewでインストール: brew install zsh-syntax-highlighting
@@ -123,6 +126,8 @@ if [[ "$TERM_PROGRAM" != "vscode" ]] && [[ "$TERM_PROGRAM" != "cursor" ]] && [[ 
             # 手動インストール版
             elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
                 source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+            elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+                source /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
             fi
             
             # zsh-autosuggestions (Linux/WSL)
@@ -131,6 +136,15 @@ if [[ "$TERM_PROGRAM" != "vscode" ]] && [[ "$TERM_PROGRAM" != "cursor" ]] && [[ 
             # 手動インストール版
             elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
                 source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+            elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+                source /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+            fi
+            
+            # zsh-completions (Linux/WSL)
+            if [[ -f ~/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh ]]; then
+                source ~/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh
+            elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh ]]; then
+                source /home/sugio/code/dotfiles/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh
             fi
             
             # zsh-autosuggestions色設定（白い背景でも見やすい色に）
@@ -299,6 +313,37 @@ export PATH="$PATH:/mnt/c/Users/<USER_NAME>/AppData/Local/Programs/cursor/resour
 
 # Cursor 
 export PATH="$PATH:/mnt/c/Users/sugio/AppData/Local/Programs/cursor/resources/app/bin"
+
+# Cursor環境での自動補完を有効にする
+if [[ "$TERM_PROGRAM" == "vscode" && ( -n "$VSCODE_IPC_HOOK_CLI" && "$VSCODE_IPC_HOOK_CLI" == *"cursor"* || -d "$HOME/.cursor-server" ) ]]; then
+    export CURSOR_ENABLED=1
+fi
+
+# Cursor環境でのプラグイン強制読み込み（上記の条件分岐で読み込まれない場合のフォールバック）
+if [[ "$CURSOR_ENABLED" == "1" ]]; then
+    # zsh-autosuggestions (Linux/WSL)
+    if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+        source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    # 手動インストール版
+    elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+        source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+    elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+        source /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+    fi
+    
+    # zsh-syntax-highlighting (Linux/WSL)
+    if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+        source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+    # 手動インストール版
+    elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+        source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+    elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+        source /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+    fi
+    
+    # zsh-autosuggestions色設定（白い背景でも見やすい色に）
+    export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
+fi
 
 # SSH keychainの設定（passphraseプロンプトを抑制）
 eval "$(keychain --eval --quiet --agents ssh id_ed25519 2>/dev/null)"
