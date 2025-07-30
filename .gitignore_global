@@ -43,8 +43,8 @@ tramp
 *.cache
 
 # 個人の環境設定ファイル
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # バックアップファイル
 *.bak
