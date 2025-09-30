@@ -53,13 +53,13 @@
 		"key": "cmd+h",
 		"command": "workbench.action.toggleMaximizedPanel"
 	},
-  {
-    "key": "cmd+shift+o",
-    "command": "workbench.panel.markers.view.focus"
-  },
 	{
-    "key": "cmd+shift+p",
-    "command": "workbench.action.terminal.focus"
+		"key": "cmd+shift+o",
+		"command": "workbench.panel.markers.view.focus"
+	},
+	{
+		"key": "cmd+shift+p",
+		"command": "workbench.action.terminal.focus"
 	},
 	{
 		"key": "cmd+[IntlRo]",
@@ -82,5 +82,47 @@
 	{
 		"key": "ctrl+alt+cmd+[IntlYen]",
 		"command": "-workbench.action.splitEditor"
+	},
+	{
+		"key": "alt+/",
+		"command": "-gitlens.gitCommands",
+		"when": "!gitlens:disabled && config.gitlens.keymap == 'alternate'"
+	},
+	{
+		"key": "alt+cmd+g /",
+		"command": "-gitlens.gitCommands",
+		"when": "!gitlens:disabled && config.gitlens.keymap == 'chorded'"
+	},
+	{
+		"key": "alt+cmd+p",
+		"command": "-projectManager.listProjects"
+	},
+	{
+		"key": "alt+cmd+p",
+		"command": "-composer.openAddContextMenu",
+		"when": "composerFocused && !editorTextFocus"
+	},
+	{
+		"key": "alt+cmd+p",
+		"command": "-keybindings.editor.toggleSortByPrecedence",
+		"when": "inKeybindings"
+	},
+	{
+		"key": "alt+cmd+p",
+		"command": "-toggleSearchPreserveCase",
+		"when": "searchViewletFocus"
+	},
+	{
+		"key": "alt+cmd+p",
+		"command": "-togglePreserveCase",
+		"when": "editorFocus"
+	},
+	{
+		"key": "alt+cmd+p",
+		"command": "workbench.action.showCommands"
+	},
+	{
+		"key": "f1",
+		"command": "-workbench.action.showCommands"
 	}
 ]

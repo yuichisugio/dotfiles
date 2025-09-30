@@ -303,10 +303,28 @@ fi
 # SSH
 # ===========================================
 
-# SSH Agent自動起動設定はkeychainに任せる
+# SSH Agentはkeychainを優先し、利用できない場合はssh-agentにフォールバック
+if command -v keychain &> /dev/null; then
+    eval "$(keychain --eval --quiet --agents ssh id_ed25519 2>/dev/null)"
+else
+    if [[ -z "$SSH_AUTH_SOCK" ]]; then
+        eval "$(ssh-agent -s)"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            ssh-add --apple-use-keychain ~/.ssh/id_ed25519 2>/dev/null || ssh-add ~/.ssh/id_ed25519 2>/dev/null || true
+        else
+            ssh-add ~/.ssh/id_ed25519 2>/dev/null || true
+        fi
+    fi
+fi
 
 # npmグローバルパッケージのパス
 export PATH=~/.npm-global/bin:$PATH
+
+# ~/.local/bin を PATH に追加（重複防止）
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+fi
 
 # Cursor 
 export PATH="$PATH:/mnt/c/Users/<USER_NAME>/AppData/Local/Programs/cursor/resources/app/bin"
@@ -344,6 +362,3 @@ if [[ "$CURSOR_ENABLED" == "1" ]]; then
     # zsh-autosuggestions色設定（白い背景でも見やすい色に）
     export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
 fi
-
-# SSH keychainの設定（passphraseプロンプトを抑制）
-eval "$(keychain --eval --quiet --agents ssh id_ed25519 2>/dev/null)"
