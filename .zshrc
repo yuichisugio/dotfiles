@@ -1,24 +1,3 @@
-# ===========================================
-# Zsh WSL Compatible
-# ===========================================
-
-fpath=(path/to/zsh-completions/src $fpath)
-
-# Cursor Agent Mode detection (最初に実行)
-if [[ "$AGENT_MODE" == "true" ]] || [[ "$TERM_PROGRAM" == "vscode" && -z "$CURSOR_ENABLED" ]]; then
-  # Disable complex prompt features for AI agents and VS Code (but not Cursor)
-  ZSH_THEME=""        # Disable Powerlevel10k
-  PROMPT='%n@%m:%~%# '  # 最小限のプロンプト
-  POWERLEVEL9K_INSTANT_PROMPT=off
-  # Ensure non-interactive mode
-  export DEBIAN_FRONTEND=noninteractive
-  export NONINTERACTIVE=1
-else
-  # Enable Powerlevel10k instant prompt only when not in agent mode
-  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-  fi
-fi
 
 # 環境検出
 detect_environment() {
@@ -72,7 +51,9 @@ SAVEHIST=10000              # ファイルに保存する履歴数
 autoload -U compinit        # 補完機能を有効化
 compinit -i                 # 安全でないファイルを無視して初期化
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'     # 大文字小文字を区別しない補完
-zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}   # 補完候補に色を付ける
+if [[ -n ${LS_COLORS:-} ]]; then                        # LS_COLORS がある場合のみ色付け
+    zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}   # 補完候補に色を付ける
+fi
 
 
 # ===========================================
@@ -86,8 +67,10 @@ compinit -i                   # セキュリティチェックを無視して初
 
 # 補完の詳細設定
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'  # 大文字小文字を区別しない
-zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS} # ls風の色分け
-zstyle ':completion:*' menu select                    # 補完候補をメニューで選択可能
+if [[ -n ${LS_COLORS:-} ]]; then                      # LS_COLORS がある場合のみ色付け
+    zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS} # ls風の色分け
+fi
+zstyle ':completion:*' menu select           # 補完候補をメニューで選択可能
 zstyle ':completion:*:descriptions' format '%B%d%b'   # 説明文を太字で表示
 zstyle ':completion:*:warnings' format 'No matches: %d' # マッチしない場合の表示
 
@@ -100,57 +83,70 @@ autoload -U colors && colors
 # プロンプトの色分け設定
 export PS1="%{$fg[cyan]%}%1~%{$reset_color%} %{$fg[green]%}%#%{$reset_color%} "
 
-# 環境別のシンタックスハイライト設定（Agent Modeでない場合のみ）
-# Cursor環境でも有効にするため、より厳密な条件に変更
-if [[ "$AGENT_MODE" != "true" ]] && [[ ! ("$TERM_PROGRAM" == "vscode" && -z "$CURSOR_ENABLED") ]]; then
-    case "$ENVIRONMENT" in
-        "macos")
-            # Homebrewでインストール: brew install zsh-syntax-highlighting
-            if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-                source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-            fi
-            
-            # zsh-autosuggestions (macOS)
-            if [[ -f $(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-                source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-            fi
-            
-            # zsh-autosuggestions色設定（白い背景でも見やすい色に）
-            export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
-            ;;
-        
-        "wsl"|"linux")
-            # APTでインストール: sudo apt install zsh-syntax-highlighting
-            if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-                source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-            # 手動インストール版
-            elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-                source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-            elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-                source /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-            fi
-            
-            # zsh-autosuggestions (Linux/WSL)
-            if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-                source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-            # 手動インストール版
-            elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-                source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-            elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-                source /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-            fi
-            
-            # zsh-completions (Linux/WSL)
-            if [[ -f ~/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh ]]; then
-                source ~/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh
-            elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh ]]; then
-                source /home/sugio/code/dotfiles/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh
-            fi
-            
-            # zsh-autosuggestions色設定（白い背景でも見やすい色に）
-            export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
-            ;;
-    esac
+# プラグイン読み込み補助関数
+load_zsh_plugin() {
+    local candidate
+    for candidate in "$@"; do
+        if [[ -n "$candidate" && -f "$candidate" ]]; then
+            source "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+configure_zsh_interactive_plugins() {
+    local brew_prefix=""
+    if command -v brew >/dev/null 2>&1; then
+        brew_prefix="$(brew --prefix)"
+    fi
+
+    local -a autos_candidates=(
+        "${brew_prefix:+$brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh}"
+        "/opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+        "/usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+        "$HOME/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+        "$HOME/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh"
+        "$HOME/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+        "/home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+    )
+    if load_zsh_plugin "${autos_candidates[@]}"; then
+        export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
+    fi
+
+    local -a completions_candidates=(
+        "${brew_prefix:+$brew_prefix/share/zsh-completions/zsh-completions.zsh}"
+        "/opt/homebrew/share/zsh-completions/zsh-completions.zsh"
+        "$HOME/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh"
+        "$HOME/code/dotfiles/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh"
+        "/home/sugio/code/dotfiles/.zsh/plugins/zsh-completions/zsh-completions.plugin.zsh"
+    )
+    load_zsh_plugin "${completions_candidates[@]}"
+
+    local -a highlight_candidates=(
+        "${brew_prefix:+$brew_prefix/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh}"
+        "/opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+        "/usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+        "$HOME/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+        "$HOME/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+        "/home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+    )
+    load_zsh_plugin "${highlight_candidates[@]}"
+}
+
+# 対話環境でのプラグイン読み込み制御
+typeset -i should_configure_plugins=0
+if [[ "$AGENT_MODE" != "true" ]]; then
+    should_configure_plugins=1
+fi
+if [[ "$TERM_PROGRAM" == "vscode" && -z "$CURSOR_ENABLED" ]]; then
+    should_configure_plugins=0
+fi
+if [[ "$CURSOR_ENABLED" == "1" ]]; then
+    should_configure_plugins=1
+fi
+if (( should_configure_plugins )); then
+    configure_zsh_interactive_plugins
 fi
 
 # シンタックスハイライトの共通色設定
@@ -324,7 +320,7 @@ export PATH=~/.npm-global/bin:$PATH
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;
   *) export PATH="$HOME/.local/bin:$PATH" ;;
-fi
+esac
 
 # Cursor 
 export PATH="$PATH:/mnt/c/Users/<USER_NAME>/AppData/Local/Programs/cursor/resources/app/bin"
@@ -337,28 +333,3 @@ if [[ "$TERM_PROGRAM" == "vscode" && ( -n "$VSCODE_IPC_HOOK_CLI" && "$VSCODE_IPC
     export CURSOR_ENABLED=1
 fi
 
-# Cursor環境でのプラグイン強制読み込み（上記の条件分岐で読み込まれない場合のフォールバック）
-if [[ "$CURSOR_ENABLED" == "1" ]]; then
-    # zsh-autosuggestions (Linux/WSL)
-    if [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-        source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-    # 手動インストール版
-    elif [[ -f ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-        source ~/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-    elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
-        source /home/sugio/code/dotfiles/.zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-    fi
-    
-    # zsh-syntax-highlighting (Linux/WSL)
-    if [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-        source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-    # 手動インストール版
-    elif [[ -f ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-        source ~/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-    elif [[ -f /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-        source /home/sugio/code/dotfiles/.zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-    fi
-    
-    # zsh-autosuggestions色設定（白い背景でも見やすい色に）
-    export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"
-fi

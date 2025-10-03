@@ -6,7 +6,6 @@ set -e
 # カラー出力用
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${GREEN}dotfiles setup script${NC}"
@@ -21,7 +20,7 @@ create_symlink() {
     local source="$1"
     local target="$2"
     local description="$3"
-    
+
     if [ -L "$target" ]; then
         echo -e "${YELLOW}Removing existing symlink: $target${NC}"
         rm "$target"
@@ -29,7 +28,7 @@ create_symlink() {
         echo -e "${YELLOW}Backing up existing file: $target -> $target.backup${NC}"
         mv "$target" "$target.backup"
     fi
-    
+
     ln -sf "$source" "$target"
     echo -e "${GREEN}✓ Created symlink: $description${NC}"
 }

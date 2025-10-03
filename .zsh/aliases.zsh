@@ -35,7 +35,7 @@ alias ....='cd ../../..'
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
-alias lh='ls -lh'        # 人間が読みやすい形式でファイルサイズを表示
+alias lh='ls -lh' # 人間が読みやすい形式でファイルサイズを表示
 
 # ===========================================
 # System Aliases
@@ -112,18 +112,18 @@ if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
     alias cmd='/mnt/c/Windows/System32/cmd.exe'
     alias powershell='/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
     alias pwsh='/mnt/c/Program\ Files/PowerShell/7/pwsh.exe'
-    
+
     # Windows側のアプリケーション
     alias notepad='/mnt/c/Windows/notepad.exe'
     alias calc='/mnt/c/Windows/System32/calc.exe'
     alias clip='/mnt/c/Windows/System32/clip.exe'
-    
+
     # Windows側のディレクトリへのショートカット
     alias cdwin='cd /mnt/c/Users/$USER'
     alias cddesk='cd /mnt/c/Users/$USER/Desktop'
-    alias cddoc='cd /mnt/c/Users/$USER/Documents'  
+    alias cddoc='cd /mnt/c/Users/$USER/Documents'
     alias cddown='cd /mnt/c/Users/$USER/Downloads'
-    
+
     # VS Code / Cursor
     alias code='code.exe'
     alias cursor='cursor.exe'
